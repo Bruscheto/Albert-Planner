@@ -1,6 +1,6 @@
-# Fuck Albert
+# Albert Course Planner
 
-A Chrome extension that unfucks NYU's Albert course registration. Scrapes your shopping cart, throws it on a weekly calendar, and lets you plan your schedule without losing your mind.
+A Chrome extension that enhances NYU's Albert course registration. Scrapes your shopping cart, throws it on a weekly calendar, and lets you plan your schedule without losing your mind.
 
 ## What it does
 
