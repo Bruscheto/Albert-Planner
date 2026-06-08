@@ -1,128 +1,60 @@
-// Weekly view script for Albert Course Planner
+// Weekly view entry point. Wires the feature modules together and owns the
+// top-level schedule load + event wiring. State and DOM refs live in
+// ./weekly-view/context.js; feature logic lives in the sibling modules.
 
 import {
 	getBuckets,
 	getCourses,
 	getPlannerSelection,
-	addCourseToPlannerSelection,
-	removeCourseFromPlannerSelection,
-	createBucket,
-	assignCourseToBucket,
-	updateBucket,
-	deleteBucket,
 	getProfessorRatings,
 } from "./course-storage.js";
 import { flattenToSchedule } from "./planner.js";
-import {
-	renderCourseMetadataContent,
-	ratingTier,
-} from "./course-metadata-panel.js";
 import {
 	calculateWeeklyHours,
 	findConflicts,
 	getEarliestStart,
 	getLatestEnd,
-	hasConflict,
 } from "./utils/calendar-utils.js";
-import { formatTime, timeToMinutes } from "./utils/time-parser.js";
-import { CALENDAR_CONFIG } from "./utils/constants.js";
+import { formatTime } from "./utils/time-parser.js";
 
-// ============ Configuration ============
-
-const START_HOUR = CALENDAR_CONFIG.START_HOUR;
-const END_HOUR = CALENDAR_CONFIG.END_HOUR;
-const HOUR_HEIGHT = 80;
-const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"];
-const CONFLICT_COLOR_PALETTE = [
-	{ fill: "#c41e3a", border: "#a71931" },
-	{ fill: "#dc143c", border: "#bb1133" },
-	{ fill: "#b22222", border: "#971d1d" },
-	{ fill: "#e63946", border: "#c4303c" },
-	{ fill: "#a4161a", border: "#8b1316" },
-	{ fill: "#d32f2f", border: "#b32828" },
-];
-
-function buildConflictColorMap(conflictCourseIds) {
-	const orderedIds = Array.from(conflictCourseIds).sort((a, b) =>
-		String(a).localeCompare(String(b)),
-	);
-	const map = new Map();
-	orderedIds.forEach((courseId, index) => {
-		map.set(
-			courseId,
-			CONFLICT_COLOR_PALETTE[index % CONFLICT_COLOR_PALETTE.length],
-		);
-	});
-	return map;
-}
-
-/**
- * Deterministic low-saturation color from a course code string.
- * Same courseCode (regardless of section) always produces the same hue.
- */
-function courseCodeToColor(courseCode) {
-	let hash = 0;
-	for (let i = 0; i < courseCode.length; i++) {
-		hash = courseCode.charCodeAt(i) + ((hash << 5) - hash);
-		hash |= 0;
-	}
-	const hue = ((hash % 360) + 360) % 360;
-	return `hsl(${hue}, 42%, 56%)`;
-}
-
-function isComponentOnline(component) {
-	if (!component?.room) return false;
-	return /\bonline\b/i.test(component.room);
-}
-
-function isCourseOnline(course) {
-	return course?.components?.some(isComponentOnline) ?? false;
-}
-
-// ============ DOM Elements ============
-
-const timeColumn = document.getElementById("time-column");
-const calendarGrid = document.getElementById("calendar-grid");
-const calendarContainer = document.querySelector(".calendar-container");
-const calendarEmptyState = document.getElementById("calendar-empty-state");
-const sidebarPlanner = document.getElementById("sidebar-planner");
-const sidebarConflicts = document.getElementById("sidebar-conflicts");
-const totalCredits = document.getElementById("total-credits");
-const sidebarBuckets = document.getElementById("sidebar-buckets");
-const statCourses = document.getElementById("stat-courses");
-const statHours = document.getElementById("stat-hours");
-const btnAddBucket = document.getElementById("btn-add-bucket");
-const btnDeleteBucket = document.getElementById("btn-delete-bucket");
-const btnSidebarToggle = document.getElementById("btn-sidebar-toggle");
-const btnExportCalendar = document.getElementById("btn-export-calendar");
-const weeklySidebar = document.getElementById("weekly-sidebar");
-const metadataDrawer = document.getElementById("course-metadata-drawer");
-const metadataDrawerBackdrop = document.getElementById("course-metadata-backdrop");
-const metadataDrawerBody = document.getElementById("course-metadata-drawer-body");
-const metadataDrawerTitle = document.getElementById("course-metadata-drawer-title");
-const metadataDrawerClose = document.getElementById("course-metadata-close");
-
-// ============ State ============
-
-let draggedCourseId = null;
-let draggedSource = null;
-let draggedFromBucketId = null;
-const bucketCollapseState = new Map();
-let deleteMode = false;
-const bucketsPendingDeletion = new Set();
-let activeRenameState = null;
-let plannerSelectionSet = new Set();
-let coursesById = new Map();
-let currentBuckets = [];
-let activeMetadataCourseId = null;
-let lastCourseBlockDragEndedAt = 0;
-let isSidebarOpen = true;
-let cachedPlannedSchedule = [];
-let dragPreviewGhosts = [];
-let dragPreviewPill = null;
-let dragPreviewCursorHandler = null;
-let cachedProfRatings = {};
-let skipDrawerRefresh = false;
+import { state, dom } from "./weekly-view/context.js";
+import { buildConflictColorMap } from "./weekly-view/colors.js";
+import {
+	generateTimeLabels,
+	generateHourLines,
+	generateQuarterTicks,
+	renderTimeAnchors,
+	mountNowIndicator,
+	updateNowIndicator,
+} from "./weekly-view/calendar-grid.js";
+import {
+	renderCourseBlocks,
+	clearCourseBlocks,
+	toggleCalendarEmptyState,
+} from "./weekly-view/course-blocks.js";
+import {
+	renderBucketsSidebar,
+	buildBucketGroups,
+	buildBucketMap,
+	renderPlanningTray,
+} from "./weekly-view/buckets.js";
+import {
+	handleBucketCreate,
+	enterDeleteMode,
+	exitDeleteMode,
+	deleteSelectedBuckets,
+} from "./weekly-view/bucket-actions.js";
+import {
+	renderCourseMetadataDrawer,
+	closeCourseMetadataDrawer,
+} from "./weekly-view/metadata-drawer.js";
+import { handleExportCalendar } from "./weekly-view/calendar-export.js";
+import {
+	handleCalendarDragEnter,
+	handleCalendarDragOver,
+	handleCalendarDragLeave,
+	handleCalendarDrop,
+} from "./weekly-view/drag-drop.js";
 
 const SIDEBAR_STORAGE_KEY = "weeklySidebarOpen";
 const SECTION_COLLAPSE_KEY = "weeklySectionCollapseState";
@@ -139,11 +71,11 @@ function getSectionCollapseState() {
 	return {};
 }
 
-function saveSectionCollapseState(state) {
+function saveSectionCollapseState(collapseState) {
 	try {
 		window.localStorage.setItem(
 			SECTION_COLLAPSE_KEY,
-			JSON.stringify(state),
+			JSON.stringify(collapseState),
 		);
 	} catch (e) {
 		// Ignore storage access failures in extension contexts.
@@ -151,12 +83,12 @@ function saveSectionCollapseState(state) {
 }
 
 function applySectionCollapseStates() {
-	const state = getSectionCollapseState();
+	const collapseState = getSectionCollapseState();
 	document
 		.querySelectorAll(".sidebar-section[data-section]")
 		.forEach((section) => {
 			const key = section.dataset.section;
-			if (state[key]) {
+			if (collapseState[key]) {
 				section.classList.add("is-collapsed");
 			}
 		});
@@ -166,80 +98,12 @@ function toggleSectionCollapse(sectionEl) {
 	const key = sectionEl.dataset.section;
 	if (!key) return;
 	const isCollapsed = sectionEl.classList.toggle("is-collapsed");
-	const state = getSectionCollapseState();
-	state[key] = isCollapsed;
-	saveSectionCollapseState(state);
+	const collapseState = getSectionCollapseState();
+	collapseState[key] = isCollapsed;
+	saveSectionCollapseState(collapseState);
 }
 
-// ============ UI Helpers ============
-
-function showToast(message, type = "info") {
-	const container = document.getElementById("toast-container");
-	const toast = document.createElement("div");
-	toast.className = `toast toast-${type}`;
-	toast.innerHTML = `
-        <div class="toast-message">${message}</div>
-    `;
-
-	container.appendChild(toast);
-
-	setTimeout(() => {
-		toast.classList.add("is-hiding");
-		toast.addEventListener("transitionend", () => {
-			toast.remove();
-		});
-	}, 3000);
-}
-
-function showModal(title, content, buttons = []) {
-	return new Promise((resolve) => {
-		const overlay = document.getElementById("modal-overlay");
-		const titleEl = document.getElementById("modal-title");
-		const bodyEl = document.getElementById("modal-body");
-		const footerEl = document.getElementById("modal-footer");
-		const closeBtn = document.getElementById("modal-close");
-		let isResolved = false;
-
-		titleEl.textContent = title;
-		bodyEl.innerHTML = "";
-		if (typeof content === "string") {
-			bodyEl.innerHTML = content;
-		} else {
-			bodyEl.appendChild(content);
-		}
-
-		footerEl.innerHTML = "";
-		buttons.forEach((btn) => {
-			const button = document.createElement("button");
-			if (btn.danger) {
-				button.className = "btn-danger-modal";
-			} else {
-				button.className = btn.primary ? "btn-primary" : "btn-secondary";
-			}
-			button.textContent = btn.label;
-			button.addEventListener("click", () => {
-				closeModal(btn.value);
-			});
-			footerEl.appendChild(button);
-		});
-
-		function closeModal(result = null) {
-			if (isResolved) {
-				return;
-			}
-			isResolved = true;
-			overlay.classList.remove("is-open");
-			resolve(result);
-		}
-
-		overlay.classList.add("is-open");
-
-		closeBtn.onclick = closeModal;
-		overlay.onclick = (e) => {
-			if (e.target === overlay) closeModal();
-		};
-	});
-}
+// ============ Sidebar ============
 
 function getStoredSidebarPreference() {
 	try {
@@ -253,265 +117,38 @@ function getStoredSidebarPreference() {
 }
 
 function applySidebarState() {
-	document.body.classList.toggle("weekly-sidebar-collapsed", !isSidebarOpen);
-	if (btnSidebarToggle) {
-		btnSidebarToggle.setAttribute("aria-expanded", String(isSidebarOpen));
-		btnSidebarToggle.setAttribute(
+	document.body.classList.toggle("weekly-sidebar-collapsed", !state.isSidebarOpen);
+	if (dom.btnSidebarToggle) {
+		dom.btnSidebarToggle.setAttribute("aria-expanded", String(state.isSidebarOpen));
+		dom.btnSidebarToggle.setAttribute(
 			"aria-label",
-			isSidebarOpen ? "Collapse planning drawer" : "Expand planning drawer",
+			state.isSidebarOpen ? "Collapse planning drawer" : "Expand planning drawer",
 		);
-		btnSidebarToggle.title = isSidebarOpen
+		dom.btnSidebarToggle.title = state.isSidebarOpen
 			? "Collapse planning drawer"
 			: "Expand planning drawer";
-		btnSidebarToggle.classList.toggle("is-collapsed", !isSidebarOpen);
+		dom.btnSidebarToggle.classList.toggle("is-collapsed", !state.isSidebarOpen);
 	}
-	if (weeklySidebar) {
-		weeklySidebar.setAttribute("aria-hidden", String(!isSidebarOpen));
+	if (dom.weeklySidebar) {
+		dom.weeklySidebar.setAttribute("aria-hidden", String(!state.isSidebarOpen));
 	}
 }
 
 function setSidebarOpen(nextOpen) {
-	isSidebarOpen = Boolean(nextOpen);
+	state.isSidebarOpen = Boolean(nextOpen);
 	applySidebarState();
 	try {
-		window.localStorage.setItem(SIDEBAR_STORAGE_KEY, String(isSidebarOpen));
+		window.localStorage.setItem(SIDEBAR_STORAGE_KEY, String(state.isSidebarOpen));
 	} catch (error) {
 		// Ignore storage access failures in extension contexts.
 	}
 }
 
 function toggleSidebar() {
-	setSidebarOpen(!isSidebarOpen);
+	setSidebarOpen(!state.isSidebarOpen);
 }
 
-function closeCourseMetadataDrawer() {
-	activeMetadataCourseId = null;
-	document.body.classList.remove("metadata-drawer-open");
-	metadataDrawer?.setAttribute("aria-hidden", "true");
-}
-
-function buildCourseContext(course) {
-	const isPlanned = plannerSelectionSet.has(course.id);
-	const online = isCourseOnline(course);
-
-	const scheduledDays = [];
-	if (isPlanned && course.components) {
-		for (const comp of course.components) {
-			if (comp.timeRange && comp.days?.length) {
-				for (const day of comp.days) {
-					if (!scheduledDays.includes(day)) scheduledDays.push(day);
-				}
-			}
-		}
-	}
-
-	const conflictCodes = [];
-	if (isPlanned) {
-		const conflicts = findConflicts(course, cachedPlannedSchedule);
-		const seen = new Set();
-		for (const c of conflicts) {
-			const other = coursesById.get(c.existingCourse);
-			if (other && !seen.has(other.courseCode)) {
-				conflictCodes.push(other.courseCode);
-				seen.add(other.courseCode);
-			}
-		}
-	}
-
-	const missingTypes = [];
-	if (course.components?.length > 1) {
-		for (const comp of course.components) {
-			if (!comp.timeRange || !comp.days?.length) {
-				const t = comp.type || "Section";
-				if (!missingTypes.includes(t)) missingTypes.push(t);
-			}
-		}
-	}
-
-	return { isPlanned, online, scheduledDays, conflictCodes, missingTypes };
-}
-
-function renderCourseMetadataDrawer() {
-	if (!metadataDrawerBody || !activeMetadataCourseId) {
-		return;
-	}
-
-	const course = coursesById.get(activeMetadataCourseId);
-	if (!course) {
-		closeCourseMetadataDrawer();
-		return;
-	}
-
-	renderCourseMetadataContent({
-		container: metadataDrawerBody,
-		course,
-		buckets: currentBuckets,
-		context: buildCourseContext(course),
-		ratings: cachedProfRatings,
-		onBucketSelect: async (bucketId) => {
-			if ((course.bucket ?? null) === (bucketId ?? null)) {
-				return;
-			}
-			await assignCourseToBucket(course.id, bucketId);
-			showToast(
-				bucketId ? "Course bucket updated" : "Course moved to Unsorted",
-				"success",
-			);
-			await loadSchedule();
-		},
-	});
-}
-
-function openCourseMetadataDrawer(courseId) {
-	if (!courseId) return;
-	cancelInlineRename();
-	activeMetadataCourseId = courseId;
-	renderCourseMetadataDrawer();
-	if (!coursesById.has(courseId)) {
-		return;
-	}
-	document.body.classList.add("metadata-drawer-open");
-	metadataDrawer?.setAttribute("aria-hidden", "false");
-}
-
-// ============ Initialization ============
-
-async function init() {
-	isSidebarOpen = getStoredSidebarPreference();
-	applySidebarState();
-	applySectionCollapseStates();
-	generateTimeLabels();
-	generateHourLines();
-	generateQuarterTicks();
-	renderTimeAnchors();
-	mountNowIndicator();
-	updateNowIndicator();
-	setInterval(updateNowIndicator, 60 * 1000);
-	await loadSchedule();
-	setupEventListeners();
-}
-
-const HEADER_OFFSET = 44; // matches .day-header / .time-header-spacer height
-
-function generateTimeLabels() {
-	timeColumn.innerHTML = "";
-
-	const spacer = document.createElement("div");
-	spacer.className = "time-header-spacer";
-	timeColumn.appendChild(spacer);
-
-	for (let hour = START_HOUR; hour < END_HOUR; hour++) {
-		const label = document.createElement("div");
-		label.className = "time-label";
-		const displayHour = hour > 12 ? hour - 12 : hour === 0 ? 12 : hour;
-		const suffix =
-			hour === 12 ? "p" : hour > 12 ? "p" : hour === 0 ? "a" : "a";
-		label.innerHTML = `<span class="time-label-num">${displayHour}</span><span class="time-label-meridiem">${suffix}</span>`;
-		timeColumn.appendChild(label);
-	}
-}
-
-function generateHourLines() {
-	const hours = END_HOUR - START_HOUR;
-	document.documentElement.style.setProperty("--day-slot-hours", String(hours));
-	for (const day of DAYS) {
-		const slotsContainer = document.getElementById(`slots-${day}`);
-		if (!slotsContainer) continue;
-		slotsContainer.innerHTML = "";
-		for (let offset = 0; offset <= hours; offset++) {
-			const line = document.createElement("div");
-			line.className = "hour-line";
-			line.style.top = `${offset * HOUR_HEIGHT}px`;
-			slotsContainer.appendChild(line);
-		}
-	}
-}
-
-function generateQuarterTicks() {
-	const hours = END_HOUR - START_HOUR;
-	for (const day of DAYS) {
-		const slotsContainer = document.getElementById(`slots-${day}`);
-		if (!slotsContainer) continue;
-		for (let offset = 0; offset < hours; offset++) {
-			for (const q of [15, 30, 45]) {
-				const tick = document.createElement("div");
-				tick.className = "quarter-tick";
-				if (q === 30) tick.classList.add("is-half");
-				tick.style.top = `${offset * HOUR_HEIGHT + (q / 60) * HOUR_HEIGHT}px`;
-				slotsContainer.appendChild(tick);
-			}
-		}
-	}
-}
-
-function renderTimeAnchors() {
-	const grid = calendarGrid;
-	if (!grid) return;
-	for (const old of grid.querySelectorAll(".time-anchor")) old.remove();
-
-	const anchors = [
-		{ hour: 12, label: "NOON" },
-		{ hour: 17, label: "EVE" },
-	];
-	for (const a of anchors) {
-		if (a.hour < START_HOUR || a.hour >= END_HOUR) continue;
-		const el = document.createElement("div");
-		el.className = "time-anchor";
-		el.textContent = a.label;
-		const top = HEADER_OFFSET + ((a.hour - START_HOUR) * 60 / 60) * HOUR_HEIGHT;
-		el.style.top = `${top}px`;
-		el.setAttribute("aria-hidden", "true");
-		grid.appendChild(el);
-	}
-}
-
-function mountNowIndicator() {
-	if (!calendarGrid) return;
-	if (calendarGrid.querySelector(".now-indicator")) return;
-	const wrap = document.createElement("div");
-	wrap.className = "now-indicator";
-	wrap.setAttribute("aria-hidden", "true");
-	wrap.hidden = true;
-	const dot = document.createElement("span");
-	dot.className = "now-indicator-dot";
-	wrap.appendChild(dot);
-	const pill = document.createElement("span");
-	pill.className = "now-indicator-pill";
-	wrap.appendChild(pill);
-	calendarGrid.appendChild(wrap);
-}
-
-function updateNowIndicator() {
-	const wrap = calendarGrid?.querySelector(".now-indicator");
-	if (!wrap) return;
-	const now = new Date();
-	const weekdayIndex = now.getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
-	const todayCol = weekdayIndex - 1; // 0=Mon ... 4=Fri
-	const hours = now.getHours();
-	const minutes = now.getMinutes();
-	const nowMinutes = hours * 60 + minutes;
-	const startMinutes = START_HOUR * 60;
-	const endMinutes = END_HOUR * 60;
-
-	const inRange =
-		todayCol >= 0 && todayCol <= 4 && nowMinutes >= startMinutes && nowMinutes <= endMinutes;
-	if (!inRange) {
-		wrap.hidden = true;
-		return;
-	}
-	const top =
-		HEADER_OFFSET + ((nowMinutes - startMinutes) / 60) * HOUR_HEIGHT;
-	wrap.style.top = `${top}px`;
-	wrap.style.setProperty("--today-col", String(todayCol));
-	const pill = wrap.querySelector(".now-indicator-pill");
-	if (pill) {
-		const h12 = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours;
-		const mm = String(minutes).padStart(2, "0");
-		const meridiem = hours >= 12 ? "p" : "a";
-		pill.textContent = `${h12}:${mm}${meridiem}`;
-	}
-	wrap.hidden = false;
-}
+// ============ Schedule load ============
 
 async function loadSchedule() {
 	try {
@@ -523,22 +160,22 @@ async function loadSchedule() {
 				getPlannerSelection(),
 				getProfessorRatings(),
 			]);
-		cachedProfRatings = profRatings;
+		state.cachedProfRatings = profRatings;
 
-		coursesById = new Map(courses.map((course) => [course.id, course]));
-		currentBuckets = buckets;
-		plannerSelectionSet = new Set(plannerSelection);
+		state.coursesById = new Map(courses.map((course) => [course.id, course]));
+		state.currentBuckets = buckets;
+		state.plannerSelectionSet = new Set(plannerSelection);
 		const plannedCourses = courses.filter((course) =>
-			plannerSelectionSet.has(course.id),
+			state.plannerSelectionSet.has(course.id),
 		);
 		const plannedSchedule = flattenToSchedule(plannedCourses);
-		cachedPlannedSchedule = plannedSchedule;
+		state.cachedPlannedSchedule = plannedSchedule;
 
 		updatePlannerStats(plannedCourses, plannedSchedule);
 		const grouped = buildBucketGroups(courses, buckets);
 		const bucketMap = buildBucketMap(buckets);
 		renderPlanningTray(plannedCourses, bucketMap);
-		renderBucketsSidebar(grouped, plannerSelectionSet);
+		renderBucketsSidebar(grouped, state.plannerSelectionSet);
 
 		const { conflicts, conflictCourseIds } = calculatePlannerConflicts(
 			plannedCourses,
@@ -553,8 +190,8 @@ async function loadSchedule() {
 			conflictColorMap,
 		});
 		toggleCalendarEmptyState(plannedSchedule.length === 0);
-		if (activeMetadataCourseId && !skipDrawerRefresh) {
-			if (coursesById.has(activeMetadataCourseId)) {
+		if (state.activeMetadataCourseId && !state.skipDrawerRefresh) {
+			if (state.coursesById.has(state.activeMetadataCourseId)) {
 				renderCourseMetadataDrawer();
 			} else {
 				closeCourseMetadataDrawer();
@@ -565,385 +202,7 @@ async function loadSchedule() {
 	}
 }
 
-// ============ Rendering ============
-
-function renderBucketsSidebar(byBucket, plannedSet = new Set()) {
-	sidebarBuckets.innerHTML = "";
-	activeRenameState = null;
-
-	const hasUserBuckets = Object.keys(byBucket).some(
-		(key) => key !== "unsorted",
-	);
-	if (!hasUserBuckets) {
-		const helper = document.createElement("p");
-		helper.className = "bucket-helper-text";
-		helper.textContent =
-			"// organize courses into groups to compare schedule options";
-		sidebarBuckets.appendChild(helper);
-	}
-
-	for (const key of Object.keys(byBucket)) {
-		const { bucket, courses } = byBucket[key];
-		const bucketId = bucket.id ?? null;
-		const collapseKey = bucketId ?? "unsorted";
-		let isCollapsed = bucketCollapseState.get(collapseKey);
-		if (isCollapsed === undefined) {
-			isCollapsed = true;
-			bucketCollapseState.set(collapseKey, true);
-		}
-		const isDeletable = Boolean(bucketId);
-		const isSelectedForDelete =
-			deleteMode && isDeletable && bucketsPendingDeletion.has(bucketId);
-
-		const wrapper = document.createElement("div");
-		wrapper.className = "bucket-wrapper";
-		wrapper.dataset.bucketId = collapseKey;
-		if (deleteMode && isDeletable) {
-			wrapper.classList.add("is-delete-mode");
-		}
-		if (isSelectedForDelete) {
-			wrapper.classList.add("is-selected-for-delete");
-		}
-
-		const header = document.createElement("div");
-		header.className = "bucket-item";
-		header.tabIndex = 0;
-		header.setAttribute("role", "button");
-		header.setAttribute(
-			"aria-label",
-			`${bucket.name} bucket, ${courses.length} courses`,
-		);
-		header.setAttribute("aria-expanded", String(!isCollapsed));
-		if (deleteMode && isDeletable) {
-			header.classList.add("is-delete-mode");
-		}
-		if (isSelectedForDelete) {
-			header.classList.add("is-selected-for-delete");
-		}
-		header.dataset.bucketId = collapseKey;
-		const actionButtons = bucketId
-			? `
-				<button type="button" class="bucket-action-button bucket-rename-button" title="Rename bucket" aria-label="Rename bucket">
-					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-						<path d="M12 20h9"/>
-						<path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/>
-					</svg>
-				</button>
-				<button type="button" class="bucket-action-button bucket-color-button" title="Change color" aria-label="Change bucket color">
-					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-						<path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/>
-					</svg>
-				</button>
-			`
-			: "";
-		header.innerHTML = `
-			${
-				deleteMode && isDeletable
-					? `<span class="bucket-delete-select ${
-							isSelectedForDelete ? "is-selected" : ""
-						}">${isSelectedForDelete ? "✓" : ""}</span>`
-					: ""
-			}
-			<div class="bucket-main">
-				<span class="bucket-dot" style="background: ${bucket.color}"></span>
-				<span class="bucket-label${bucketId ? " bucket-label-editable" : ""}">
-					${bucket.name}
-				</span>
-			</div>
-			<div class="bucket-meta">
-				<span class="bucket-count">${courses.length}</span>
-				${actionButtons}
-				<svg class="bucket-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-					<path d="M6 9l6 6 6-6" />
-				</svg>
-			</div>
-		`;
-
-		const courseList = document.createElement("div");
-		courseList.className = "bucket-course-list";
-		courseList.dataset.bucketId = collapseKey;
-
-		const courseListInner = document.createElement("div");
-		courseListInner.className = "bucket-course-list-inner";
-
-		if (isCollapsed) {
-			courseList.classList.add("is-collapsed");
-			header.classList.add("is-collapsed");
-			wrapper.classList.add("is-collapsed");
-		}
-
-		// Attach drag handlers to wrapper
-		wrapper.addEventListener("dragover", handleBucketWrapperDragOver);
-		wrapper.addEventListener("dragleave", handleBucketWrapperDragLeave);
-		wrapper.addEventListener("drop", handleBucketWrapperDrop);
-
-		if (courses.length === 0) {
-			const empty = document.createElement("div");
-			empty.className = "bucket-course-empty";
-			empty.textContent = "// empty";
-			courseListInner.appendChild(empty);
-		} else {
-			for (const course of courses) {
-				const entry = document.createElement("div");
-				entry.className = "bucket-course-entry";
-				entry.dataset.courseId = course.id;
-				entry.dataset.bucketId = bucketId ?? "";
-				entry.style.borderLeftColor = courseCodeToColor(course.courseCode);
-				entry.setAttribute(
-					"aria-label",
-					`${course.courseCode} — ${course.title}`,
-				);
-				const isPlanned = plannedSet.has(course.id);
-				if (isPlanned) {
-					entry.classList.add("is-planned");
-				}
-
-				const body = document.createElement("div");
-				body.className = "course-entry-body";
-				const onlineTag = isCourseOnline(course)
-					? ' <span class="course-online-tag" title="Online course">~online</span>'
-					: "";
-				body.innerHTML = `
-					<strong>${course.courseCode}</strong>
-					<span>${course.title}${onlineTag}</span>
-				`;
-
-				const footer = document.createElement("div");
-				footer.className = "course-entry-footer";
-
-				const toggleButton = document.createElement("button");
-				toggleButton.type = "button";
-				if (isPlanned) {
-					toggleButton.className = "course-icon-btn course-icon-btn--remove";
-					toggleButton.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>`;
-					toggleButton.ariaLabel = "Remove from calendar";
-					toggleButton.title = "Remove from calendar";
-					toggleButton.addEventListener("click", (event) => {
-						event.stopPropagation();
-						handlePlannerRemove(course.id);
-					});
-				} else {
-					toggleButton.className = "course-icon-btn course-icon-btn--add";
-					toggleButton.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>`;
-					toggleButton.ariaLabel = "Add to calendar";
-					toggleButton.title = "Add to calendar";
-					toggleButton.addEventListener("click", (event) => {
-						event.stopPropagation();
-						handlePlannerAdd(course.id);
-					});
-				}
-
-				const editButton = document.createElement("button");
-				editButton.type = "button";
-				editButton.className = "course-icon-btn course-icon-btn--edit";
-				editButton.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
-				editButton.ariaLabel = "Edit course metadata";
-				editButton.title = "Edit course metadata";
-				editButton.addEventListener("click", (event) => {
-					event.stopPropagation();
-					openCourseMetadataDrawer(course.id);
-				});
-
-				const dragHandle = document.createElement("button");
-				dragHandle.type = "button";
-				dragHandle.className = "course-icon-btn course-icon-btn--drag";
-				dragHandle.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="12" r="1"/><circle cx="9" cy="5" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="19" r="1"/></svg>`;
-				dragHandle.ariaLabel = "Drag course";
-				dragHandle.draggable = true;
-				dragHandle.dataset.courseId = course.id;
-				dragHandle.dataset.bucketId = bucketId ?? "";
-				dragHandle.title = "Drag to calendar or another bucket";
-				dragHandle.addEventListener("dragstart", handleBucketCourseDragStart);
-				dragHandle.addEventListener("dragend", handleBucketCourseDragEnd);
-
-				footer.append(toggleButton, editButton, dragHandle);
-				entry.append(body, footer);
-				courseListInner.appendChild(entry);
-			}
-		}
-
-		courseList.appendChild(courseListInner);
-
-		const toggleBucketCollapse = () => {
-			const nextCollapsed = !courseList.classList.contains("is-collapsed");
-			courseList.classList.toggle("is-collapsed", nextCollapsed);
-			header.classList.toggle("is-collapsed", nextCollapsed);
-			wrapper.classList.toggle("is-collapsed", nextCollapsed);
-			header.setAttribute("aria-expanded", String(!nextCollapsed));
-			bucketCollapseState.set(collapseKey, nextCollapsed);
-		};
-
-		header.addEventListener("click", (event) => {
-			if (event.target.closest(".bucket-action-button")) {
-				return;
-			}
-
-			if (deleteMode && isDeletable) {
-				toggleBucketDeleteSelection(bucketId, header);
-				return;
-			}
-
-			toggleBucketCollapse();
-		});
-
-		header.addEventListener("keydown", (event) => {
-			if (event.key === "Enter" || event.key === " ") {
-				event.preventDefault();
-				if (deleteMode && isDeletable) {
-					toggleBucketDeleteSelection(bucketId, header);
-				} else {
-					toggleBucketCollapse();
-				}
-			}
-		});
-
-		if (bucketId) {
-			const label = header.querySelector(".bucket-label");
-			label?.addEventListener("dblclick", (event) => {
-				event.stopPropagation();
-				if (deleteMode) return;
-				startBucketRename(bucket, header);
-			});
-
-			const renameButton = header.querySelector(".bucket-rename-button");
-			renameButton?.addEventListener("click", (event) => {
-				event.stopPropagation();
-				if (deleteMode) return;
-				startBucketRename(bucket, header);
-			});
-
-			const colorButton = header.querySelector(".bucket-color-button");
-			colorButton?.addEventListener("click", (event) => {
-				event.stopPropagation();
-				if (deleteMode) return;
-				handleBucketRecolor(bucket);
-			});
-		}
-
-		wrapper.appendChild(header);
-		wrapper.appendChild(courseList);
-		sidebarBuckets.appendChild(wrapper);
-	}
-}
-
-function buildBucketGroups(courses, buckets) {
-	const unsortedKey = "unsorted";
-	const unsortedBucket = {
-		id: null,
-		name: "Unsorted",
-		color: "#9ca3af",
-		priority: -Infinity,
-	};
-	const groups = {
-		[unsortedKey]: {
-			bucket: unsortedBucket,
-			courses: [],
-		},
-	};
-
-	const orderedBuckets = [...buckets].sort(
-		(a, b) => (a.priority ?? 0) - (b.priority ?? 0),
-	);
-
-	for (const bucket of orderedBuckets) {
-		groups[bucket.id] = {
-			bucket,
-			courses: [],
-		};
-	}
-
-	for (const course of courses) {
-		const key = course.bucket ?? unsortedKey;
-		if (groups[key]) {
-			groups[key].courses.push(course);
-		} else {
-			groups[unsortedKey].courses.push(course);
-		}
-	}
-
-	return groups;
-}
-
-function buildBucketMap(buckets) {
-	const map = new Map();
-	for (const bucket of buckets) {
-		if (bucket?.id) {
-			map.set(bucket.id, bucket);
-		}
-	}
-	return map;
-}
-
-function renderPlanningTray(plannedCourses, bucketMap) {
-	sidebarPlanner.innerHTML = "";
-	if (plannedCourses.length === 0) {
-		const empty = document.createElement("p");
-		empty.className = "tray-empty";
-		empty.textContent =
-			"// nothing queued — drag from buckets or use the + icons";
-		sidebarPlanner.appendChild(empty);
-		return;
-	}
-
-	for (const course of plannedCourses) {
-		const chip = document.createElement("div");
-		chip.className = "planner-course-chip";
-		chip.dataset.courseId = course.id;
-		chip.style.borderLeftColor = courseCodeToColor(course.courseCode);
-		chip.setAttribute(
-			"aria-label",
-			`${course.courseCode} — ${course.title || "Untitled"}`,
-		);
-
-		const details = document.createElement("div");
-		details.className = "planner-course-details";
-		const code = document.createElement("span");
-		code.className = "planner-course-code";
-		code.textContent = course.courseCode;
-		const title = document.createElement("span");
-		title.className = "planner-course-title";
-		title.textContent = course.title || "Untitled";
-		details.append(code, title);
-
-		const actions = document.createElement("div");
-		actions.className = "planner-course-actions";
-
-		if (isCourseOnline(course)) {
-			const onlineTag = document.createElement("span");
-			onlineTag.className = "course-online-tag";
-			onlineTag.textContent = "~online";
-			onlineTag.title = "Online course";
-			actions.appendChild(onlineTag);
-		}
-
-		const bucketInfo = course.bucket ? bucketMap.get(course.bucket) : null;
-		if (bucketInfo) {
-			const tag = document.createElement("span");
-			tag.className = "planner-bucket-tag";
-			tag.textContent = bucketInfo.name;
-			if (bucketInfo.color) {
-				tag.style.backgroundColor = `${bucketInfo.color}22`;
-				tag.style.color = bucketInfo.color;
-			}
-			actions.appendChild(tag);
-		}
-
-		const removeButton = document.createElement("button");
-		removeButton.type = "button";
-		removeButton.className = "course-icon-btn course-icon-btn--remove";
-		removeButton.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
-		removeButton.ariaLabel = "Remove from calendar";
-		removeButton.title = "Remove from calendar";
-		removeButton.addEventListener("click", (event) => {
-			event.stopPropagation();
-			handlePlannerRemove(course.id);
-		});
-		actions.appendChild(removeButton);
-
-		chip.append(details, actions);
-		sidebarPlanner.appendChild(chip);
-	}
-}
+// ============ Stats & conflicts ============
 
 function updatePlannerStats(plannedCourses, plannedSchedule) {
 	const totalPlanned = plannedCourses.length;
@@ -952,9 +211,9 @@ function updatePlannerStats(plannedCourses, plannedSchedule) {
 		0,
 	);
 	const weeklyHours = calculateWeeklyHours(plannedSchedule);
-	totalCredits.textContent = totalCreditsValue;
-	statCourses.textContent = totalPlanned;
-	statHours.textContent = weeklyHours.toFixed(1);
+	dom.totalCredits.textContent = totalCreditsValue;
+	dom.statCourses.textContent = totalPlanned;
+	dom.statHours.textContent = weeklyHours.toFixed(1);
 
 	const headerCourseCount = document.getElementById("header-course-count");
 	if (headerCourseCount) {
@@ -995,7 +254,7 @@ function calculatePlannerConflicts(plannedCourses, plannedSchedule) {
 		conflictCourseIds.add(course.id);
 
 		const conflictsWith = Array.from(conflictingIds)
-			.map((id) => coursesById.get(id))
+			.map((id) => state.coursesById.get(id))
 			.filter(Boolean);
 		if (!conflictsWith.length) {
 			continue;
@@ -1033,15 +292,15 @@ function checkIncompleteScheduling(plannedCourses) {
 }
 
 function renderConflictsSidebar(conflicts = [], conflictColorMap = new Map(), warnings = []) {
-	if (!sidebarConflicts) return;
+	if (!dom.sidebarConflicts) return;
 
 	if (!conflicts.length && !warnings.length) {
-		sidebarConflicts.innerHTML =
+		dom.sidebarConflicts.innerHTML =
 			'<p class="no-conflicts">// no conflicts detected</p>';
 		return;
 	}
 
-	sidebarConflicts.innerHTML = "";
+	dom.sidebarConflicts.innerHTML = "";
 
 	for (const entry of conflicts) {
 		const conflictItem = document.createElement("div");
@@ -1065,7 +324,7 @@ function renderConflictsSidebar(conflicts = [], conflictColorMap = new Map(), wa
 			? `${swatch}<div><strong>${baseCode}</strong><br>Conflicts with ${conflictingCodes}</div>`
 			: `${swatch}<div><strong>${baseCode}</strong><br>Has schedule conflicts</div>`;
 
-		sidebarConflicts.appendChild(conflictItem);
+		dom.sidebarConflicts.appendChild(conflictItem);
 	}
 
 	for (const warning of warnings) {
@@ -1073,1086 +332,18 @@ function renderConflictsSidebar(conflicts = [], conflictColorMap = new Map(), wa
 		warningItem.className = "warning-item";
 		const missingLabel = warning.missingTypes.join(", ");
 		warningItem.innerHTML = `<span class="warning-icon" aria-hidden="true">⚠</span><div><strong>${warning.course.courseCode}</strong><br>${missingLabel} not scheduled</div>`;
-		sidebarConflicts.appendChild(warningItem);
+		dom.sidebarConflicts.appendChild(warningItem);
 	}
-}
-
-function renderCourseBlocks(schedule, buckets, options = {}) {
-	const bucketDetails = {};
-	const {
-		highlightConflicts = false,
-		conflictCourseIds = new Set(),
-		conflictColorMap = new Map(),
-	} = options;
-	for (const bucket of buckets) {
-		bucketDetails[bucket.id] = bucket;
-	}
-
-	// Group by day
-	const eventsByDay = {};
-	for (const component of schedule) {
-		if (!component.timeRange || component.days.length === 0) continue;
-		for (const day of component.days) {
-			if (!eventsByDay[day]) eventsByDay[day] = [];
-			eventsByDay[day].push(component);
-		}
-	}
-
-	// Render for each day
-	for (const day of Object.keys(eventsByDay)) {
-		const slotsContainer = document.getElementById(`slots-${day}`);
-		if (!slotsContainer) continue;
-
-		const events = eventsByDay[day];
-		const layout = layoutEventsForDay(events);
-
-		for (let i = 0; i < events.length; i++) {
-			const component = events[i];
-			const { left, width } = layout[i];
-
-			const isConflictCourse =
-				highlightConflicts && conflictCourseIds.has(component.courseId);
-
-			const block = createCourseBlock(component, bucketDetails, {
-				isConflict: isConflictCourse,
-				conflictColorMap,
-				left: `${left}%`,
-				width: `${width}%`,
-			});
-			slotsContainer.appendChild(block);
-		}
-	}
-}
-
-/**
- * Calculate layout for overlapping events in a day
- * Returns array of { left, width } objects corresponding to input events array
- */
-function layoutEventsForDay(events) {
-	// 1. Sort events by start time, then duration (longer first)
-	const sortedIndices = events
-		.map((_, i) => i)
-		.sort((a, b) => {
-			const startA = timeToMinutes(events[a].timeRange.start);
-			const startB = timeToMinutes(events[b].timeRange.start);
-			if (startA !== startB) return startA - startB;
-
-			const endA = timeToMinutes(events[a].timeRange.end);
-			const endB = timeToMinutes(events[b].timeRange.end);
-			return endB - startB - (endA - startA);
-		});
-
-	// 2. Build columns
-	const columns = [];
-	const eventColumnIndex = new Array(events.length).fill(0);
-
-	for (const eventIndex of sortedIndices) {
-		const event = events[eventIndex];
-		const start = timeToMinutes(event.timeRange.start);
-		const end = timeToMinutes(event.timeRange.end);
-
-		let placed = false;
-		for (let i = 0; i < columns.length; i++) {
-			const column = columns[i];
-			// Check if this column has space (last event ends before this one starts)
-			const lastEventIndex = column[column.length - 1];
-			const lastEventEnd = timeToMinutes(events[lastEventIndex].timeRange.end);
-
-			if (lastEventEnd <= start) {
-				column.push(eventIndex);
-				eventColumnIndex[eventIndex] = i;
-				placed = true;
-				break;
-			}
-		}
-
-		if (!placed) {
-			columns.push([eventIndex]);
-			eventColumnIndex[eventIndex] = columns.length - 1;
-		}
-	}
-
-	// 3. Calculate widths and positions
-	// This is a simplified "pack into columns" approach.
-	// For a more perfect "Google Calendar" style, we'd need to detect clusters.
-	// But simply dividing by total columns overlapping at that time is a good start.
-
-	const result = new Array(events.length);
-	const totalColumns = columns.length;
-
-	// Simple approach: width = 100% / totalColumns
-	// But we can do better: width = 100% / max_concurrent_at_this_time
-	// For now, let's stick to the column-based approach which guarantees no overlap visually
-	// but might make items thinner than necessary if they don't overlap with all columns.
-
-	// Refined approach: Find clusters of overlapping events
-	// Two events are in the same cluster if they overlap directly or indirectly.
-
-	// Let's use the simple column approach first as it's robust and easy to implement.
-	// We can refine to "expand if space available" later if needed.
-
-	// Actually, let's do a slightly smarter thing:
-	// For each event, find the maximum number of columns that exist during its time range.
-	// This is still hard without full clustering.
-
-	// Let's stick to: width = 100 / totalColumns in the cluster.
-	// Since we haven't implemented clustering, let's just use the max columns found for the whole day?
-	// No, that makes everything thin if there's one busy time.
-
-	// Let's implement simple clustering.
-	const clusters = [];
-	let currentCluster = [];
-	let clusterEnd = -1;
-
-	for (const eventIndex of sortedIndices) {
-		const event = events[eventIndex];
-		const start = timeToMinutes(event.timeRange.start);
-		const end = timeToMinutes(event.timeRange.end);
-
-		if (currentCluster.length === 0) {
-			currentCluster.push(eventIndex);
-			clusterEnd = end;
-		} else {
-			if (start < clusterEnd) {
-				currentCluster.push(eventIndex);
-				clusterEnd = Math.max(clusterEnd, end);
-			} else {
-				clusters.push(currentCluster);
-				currentCluster = [eventIndex];
-				clusterEnd = end;
-			}
-		}
-	}
-	if (currentCluster.length > 0) clusters.push(currentCluster);
-
-	// Process each cluster
-	for (const cluster of clusters) {
-		// Calculate columns just for this cluster
-		const clusterColumns = [];
-		const clusterEventColumn = {}; // eventIndex -> colIndex
-
-		for (const eventIndex of cluster) {
-			const event = events[eventIndex];
-			const start = timeToMinutes(event.timeRange.start);
-
-			let placed = false;
-			for (let i = 0; i < clusterColumns.length; i++) {
-				const lastEventIndex = clusterColumns[i][clusterColumns[i].length - 1];
-				const lastEventEnd = timeToMinutes(
-					events[lastEventIndex].timeRange.end,
-				);
-
-				if (lastEventEnd <= start) {
-					clusterColumns[i].push(eventIndex);
-					clusterEventColumn[eventIndex] = i;
-					placed = true;
-					break;
-				}
-			}
-			if (!placed) {
-				clusterColumns.push([eventIndex]);
-				clusterEventColumn[eventIndex] = clusterColumns.length - 1;
-			}
-		}
-
-		const width = 100 / clusterColumns.length;
-		for (const eventIndex of cluster) {
-			const colIndex = clusterEventColumn[eventIndex];
-			result[eventIndex] = {
-				left: colIndex * width,
-				width: width,
-			};
-		}
-	}
-
-	return result;
-}
-
-function createCourseBlock(component, bucketDetails, options = {}) {
-	const {
-		isConflict = false,
-		conflictColorMap = new Map(),
-		left = "0%",
-		width = "100%",
-	} = options;
-	const block = document.createElement("div");
-	block.className = "course-block";
-	if (isConflict) {
-		block.classList.add("conflict");
-	}
-	block.draggable = true;
-	block.dataset.courseId = component.courseId;
-	block.dataset.bucketId = component.bucket ?? "";
-	block.tabIndex = 0;
-	block.setAttribute("role", "button");
-	block.setAttribute("aria-label", `Open metadata for ${component.courseCode}`);
-	block.addEventListener("dragstart", handleCourseDragStart);
-	block.addEventListener("dragend", handleCourseDragEnd);
-
-	const startMinutes = timeToMinutes(component.timeRange.start);
-	const endMinutes = timeToMinutes(component.timeRange.end);
-	const startOffset = startMinutes - START_HOUR * 60;
-	const duration = endMinutes - startMinutes;
-
-	block.style.top = `${(startOffset / 60) * HOUR_HEIGHT}px`;
-	block.style.height = `${(duration / 60) * HOUR_HEIGHT}px`;
-	block.style.left = left;
-	block.style.width = width;
-
-	// Compact mode for short classes — hide title, keep code + time + tags
-	if (duration <= 55) {
-		block.classList.add("is-compact");
-	}
-
-	const bucketInfo = component.bucket ? bucketDetails[component.bucket] : null;
-	const color = courseCodeToColor(component.courseCode);
-	if (!isConflict) {
-		block.style.backgroundColor = color;
-	} else {
-		const conflictColor = conflictColorMap.get(component.courseId);
-		if (conflictColor) {
-			block.style.setProperty("--conflict-fill", conflictColor.fill);
-			block.style.setProperty("--conflict-border", conflictColor.border);
-		}
-	}
-
-	const startStr = formatTime(component.timeRange.start);
-	const endStr = formatTime(component.timeRange.end);
-	const online = isComponentOnline(component);
-	if (online) block.classList.add("is-online");
-	const bucketPillContent = bucketInfo
-		? `<span class="course-block-pill bucket">${bucketInfo.name}</span>`
-		: "";
-	const typePill =
-		component.type && component.type !== "Lecture"
-			? `<span class="course-block-pill type">${component.type}</span>`
-			: "";
-
-	let ratingPill = "";
-	const profName = component.instructor?.trim();
-	if (
-		profName &&
-		!/^(TBA|to be announced)$/i.test(profName) &&
-		cachedProfRatings[profName] != null
-	) {
-		const num = Number(cachedProfRatings[profName]);
-		const r = num.toFixed(1);
-		const tier = ratingTier(num);
-		ratingPill = `<span class="course-block-pill rating rating-${tier}">${r}</span>`;
-	}
-
-	const allPills =
-		bucketPillContent || typePill || ratingPill
-			? `<div class="course-block-tags">${typePill}${bucketPillContent}${ratingPill}</div>`
-			: "";
-	const conflictMarker =
-		'<button type="button" class="course-block-remove-btn" aria-label="Remove course from schedule" title="Remove from schedule"><svg class="course-block-remove-icon" width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true"><path d="M1.5 1.5L8.5 8.5M8.5 1.5L1.5 8.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>';
-	block.innerHTML = `
-    ${conflictMarker}
-    <div class="course-block-code">${component.courseCode}</div>
-    <div class="course-block-time">${startStr} - ${endStr}</div>
-    <div class="course-block-title">${component.courseTitle || ""}</div>
-    ${allPills}
-  `;
-
-	const removeButton = block.querySelector(".course-block-remove-btn");
-	if (removeButton) {
-		removeButton.addEventListener("pointerdown", (event) => {
-			event.preventDefault();
-			event.stopPropagation();
-		});
-
-		removeButton.addEventListener("click", async (event) => {
-			event.preventDefault();
-			event.stopPropagation();
-			await handlePlannerRemove(component.courseId);
-		});
-	}
-
-	block.addEventListener("click", (event) => {
-		if (event.target.closest(".course-block-remove-btn")) {
-			return;
-		}
-		if (Date.now() - lastCourseBlockDragEndedAt < 200) {
-			return;
-		}
-		openCourseMetadataDrawer(component.courseId);
-	});
-
-	block.addEventListener("keydown", (event) => {
-		if (event.key === "Enter" || event.key === " ") {
-			event.preventDefault();
-			openCourseMetadataDrawer(component.courseId);
-		}
-	});
-
-	block.title =
-		`${component.courseCode} - ${component.courseTitle}\n` +
-		`${component.type}\n` +
-		`${startStr} - ${endStr}\n` +
-		`${component.room}\n` +
-		`${component.instructor}`;
-
-	return block;
-}
-
-// ============ Drag & Drop ============
-
-function handleCourseDragStart(event) {
-	const courseId = event.currentTarget?.dataset?.courseId;
-	if (!courseId) return;
-	draggedCourseId = courseId;
-	draggedSource = "calendar";
-	draggedFromBucketId = event.currentTarget?.dataset?.bucketId || null;
-	event.dataTransfer?.setData("text/plain", courseId);
-	event.dataTransfer.effectAllowed = "move";
-	event.currentTarget.classList.add("dragging");
-}
-
-function handleCourseDragEnd(event) {
-	event.currentTarget.classList.remove("dragging");
-	lastCourseBlockDragEndedAt = Date.now();
-	resetDragPayload();
-}
-
-function handleBucketCourseDragStart(event) {
-	const handle = event.currentTarget;
-	const entry = handle.closest(".bucket-course-entry");
-	const courseId = handle?.dataset?.courseId || entry?.dataset?.courseId;
-	if (!courseId) return;
-	draggedCourseId = courseId;
-	draggedSource = "bucket";
-	draggedFromBucketId =
-		handle?.dataset?.bucketId || entry?.dataset?.bucketId || null;
-	event.dataTransfer?.setData("text/plain", courseId);
-	event.dataTransfer.effectAllowed = "copyMove";
-	entry?.classList.add("is-dragging");
-	showDragPreview(courseId);
-}
-
-function handleBucketCourseDragEnd(event) {
-	const entry = event.currentTarget.closest(".bucket-course-entry");
-	entry?.classList.remove("is-dragging");
-	hideDragPreview();
-	resetDragPayload();
-}
-
-function handleBucketWrapperDragOver(event) {
-	const wrapper = event.currentTarget;
-	if (!wrapper || !draggedCourseId) return;
-
-	const bucketKey = wrapper.dataset.bucketId;
-	const bucketId = bucketKey === "unsorted" ? null : bucketKey;
-
-	// Prevent dropping into source bucket
-	const isValidTarget =
-		draggedSource === "calendar" ||
-		(draggedSource === "bucket" && draggedFromBucketId !== bucketId);
-
-	if (!isValidTarget) return;
-
-	event.preventDefault();
-	event.dataTransfer.dropEffect = "move";
-	wrapper.classList.add("is-drop-target");
-}
-
-function handleBucketWrapperDragLeave(event) {
-	const wrapper = event.currentTarget;
-	if (!wrapper) return;
-
-	const nextTarget = event.relatedTarget;
-	if (!nextTarget || !wrapper.contains(nextTarget)) {
-		wrapper.classList.remove("is-drop-target");
-	}
-}
-
-async function handleBucketWrapperDrop(event) {
-	const wrapper = event.currentTarget;
-	if (!wrapper) {
-		resetDragPayload();
-		return;
-	}
-	event.preventDefault();
-	wrapper.classList.remove("is-drop-target");
-
-	const bucketKey = wrapper.dataset.bucketId;
-	const bucketId = bucketKey === "unsorted" ? null : bucketKey;
-
-	await completeBucketDrop(bucketId);
-}
-
-async function completeBucketDrop(bucketId) {
-	if (!draggedCourseId) {
-		resetDragPayload();
-		return;
-	}
-
-	if (draggedSource === "calendar") {
-		if (bucketId !== draggedFromBucketId) {
-			await assignCourseToBucket(draggedCourseId, bucketId || null);
-		}
-		await removeCourseFromPlannerSelection(draggedCourseId);
-	} else if (draggedSource === "bucket" && bucketId !== draggedFromBucketId) {
-		await assignCourseToBucket(draggedCourseId, bucketId || null);
-	}
-
-	resetDragPayload();
-	await loadSchedule();
-}
-
-function handleCalendarDragEnter(event) {
-	if (draggedSource !== "bucket") return;
-	event.preventDefault();
-	calendarGrid.classList.add("drag-over");
-}
-
-function handleCalendarDragOver(event) {
-	if (draggedSource !== "bucket") return;
-	event.preventDefault();
-	event.dataTransfer.dropEffect = "move";
-}
-
-function handleCalendarDragLeave(event) {
-	const nextTarget = event.relatedTarget;
-	if (!nextTarget || !calendarGrid.contains(nextTarget)) {
-		calendarGrid.classList.remove("drag-over");
-	}
-}
-
-async function handleCalendarDrop(event) {
-	event.preventDefault();
-	calendarGrid?.classList.remove("drag-over");
-	hideDragPreview();
-
-	// Try to get course ID from global state or dataTransfer
-	let courseId = draggedCourseId;
-	if (!courseId) {
-		courseId = event.dataTransfer.getData("text/plain");
-	}
-
-	if (!courseId) {
-		resetDragPayload();
-		return;
-	}
-
-	// If dragging from bucket or if we have a valid course ID that isn't in planner yet
-	if (
-		(draggedSource === "bucket" || courseId) &&
-		!plannerSelectionSet.has(courseId)
-	) {
-		await addCourseToPlannerSelection(courseId);
-		showToast("Course added to schedule", "success");
-		await loadSchedule();
-	} else if (plannerSelectionSet.has(courseId)) {
-		showToast("Course is already in schedule", "info");
-	}
-
-	resetDragPayload();
-}
-
-function resetDragPayload() {
-	const targets = document.querySelectorAll(".is-drop-target");
-	targets.forEach((el) => el.classList.remove("is-drop-target"));
-	calendarGrid?.classList.remove("drag-over");
-	draggedCourseId = null;
-	draggedSource = null;
-	draggedFromBucketId = null;
-}
-
-function showDragPreview(courseId) {
-	hideDragPreview();
-	const course = coursesById.get(courseId);
-	if (!course || !Array.isArray(course.components)) return;
-
-	const alreadyAdded = plannerSelectionSet.has(courseId);
-	const accentColor = courseCodeToColor(course.courseCode || course.id);
-	let totalSlots = 0;
-	let conflictSlots = 0;
-	const componentSummaries = [];
-
-	for (const component of course.components) {
-		if (!component.timeRange || !component.days?.length) continue;
-
-		const startMinutes = timeToMinutes(component.timeRange.start);
-		const endMinutes = timeToMinutes(component.timeRange.end);
-		if (!Number.isFinite(startMinutes) || !Number.isFinite(endMinutes)) continue;
-
-		const top = ((startMinutes - START_HOUR * 60) / 60) * HOUR_HEIGHT;
-		const height = ((endMinutes - startMinutes) / 60) * HOUR_HEIGHT;
-
-		const componentConflicts =
-			!alreadyAdded && hasConflict(component, cachedPlannedSchedule);
-		componentSummaries.push({
-			type: component.type || "Class",
-			days: component.days.join("/"),
-			start: formatTime(component.timeRange.start),
-			end: formatTime(component.timeRange.end),
-			conflict: componentConflicts,
-		});
-
-		if (alreadyAdded) continue;
-
-		for (const day of component.days) {
-			const slotsContainer = document.getElementById(`slots-${day}`);
-			if (!slotsContainer) continue;
-			totalSlots++;
-			if (componentConflicts) conflictSlots++;
-
-			const ghost = document.createElement("div");
-			ghost.className = "course-block-ghost";
-			if (componentConflicts) ghost.classList.add("is-conflict");
-			ghost.style.top = `${top}px`;
-			ghost.style.height = `${Math.max(height, 18)}px`;
-			ghost.style.setProperty("--ghost-accent", accentColor);
-
-			const typeLabel = (component.type || "Class").toUpperCase();
-			const timeLabel = `${formatTime(component.timeRange.start)} – ${formatTime(component.timeRange.end)}`;
-			ghost.innerHTML = `
-				<div class="course-block-ghost-head">
-					<span class="course-block-ghost-code">${course.courseCode || ""}</span>
-					<span class="course-block-ghost-type">${typeLabel}</span>
-				</div>
-				<div class="course-block-ghost-time">${timeLabel}</div>
-				${componentConflicts ? '<span class="course-block-ghost-mark" aria-hidden="true">✕</span>' : ""}
-			`;
-			slotsContainer.appendChild(ghost);
-			dragPreviewGhosts.push(ghost);
-		}
-	}
-
-	const pill = document.createElement("div");
-	pill.className = "drag-cursor-pill";
-	if (alreadyAdded) {
-		pill.classList.add("is-added");
-	} else {
-		pill.classList.add(conflictSlots > 0 ? "is-conflict" : "is-ok");
-	}
-
-	const metaHtml = componentSummaries
-		.map(
-			(c) =>
-				`<div class="drag-cursor-pill-line${c.conflict ? " is-conflict" : ""}">
-					<span class="drag-cursor-pill-type">${c.type}</span>
-					<span class="drag-cursor-pill-when">${c.days} · ${c.start}–${c.end}</span>
-				</div>`,
-		)
-		.join("");
-
-	let statusLabel;
-	let statusGlyph;
-	if (alreadyAdded) {
-		statusLabel = "already on calendar";
-		statusGlyph = "●";
-	} else if (conflictSlots > 0) {
-		statusLabel = `${conflictSlots} conflict${conflictSlots > 1 ? "s" : ""}`;
-		statusGlyph = "✕";
-	} else {
-		statusLabel = `${totalSlots || 0} slot${totalSlots === 1 ? "" : "s"} clear`;
-		statusGlyph = "✓";
-	}
-
-	pill.innerHTML = `
-		<div class="drag-cursor-pill-head">
-			<span class="drag-cursor-pill-code">${course.courseCode || ""}</span>
-			${course.title ? `<span class="drag-cursor-pill-title">${course.title}</span>` : ""}
-		</div>
-		${metaHtml ? `<div class="drag-cursor-pill-body">${metaHtml}</div>` : ""}
-		<div class="drag-cursor-pill-status">
-			<span class="drag-cursor-pill-glyph" aria-hidden="true">${statusGlyph}</span>
-			<span>${statusLabel}</span>
-		</div>
-	`;
-	document.body.appendChild(pill);
-	dragPreviewPill = pill;
-	document.body.classList.add("is-drag-preview-active");
-
-	dragPreviewCursorHandler = (e) => {
-		if (!dragPreviewPill) return;
-		if (e.clientX === 0 && e.clientY === 0) return;
-		dragPreviewPill.style.transform = `translate3d(${e.clientX + 18}px, ${e.clientY + 18}px, 0)`;
-		if (!dragPreviewPill.classList.contains("is-visible")) {
-			dragPreviewPill.classList.add("is-visible");
-		}
-	};
-	document.addEventListener("dragover", dragPreviewCursorHandler);
-}
-
-function hideDragPreview() {
-	for (const ghost of dragPreviewGhosts) ghost.remove();
-	dragPreviewGhosts = [];
-	if (dragPreviewPill) {
-		dragPreviewPill.remove();
-		dragPreviewPill = null;
-	}
-	if (dragPreviewCursorHandler) {
-		document.removeEventListener("dragover", dragPreviewCursorHandler);
-		dragPreviewCursorHandler = null;
-	}
-	document.body.classList.remove("is-drag-preview-active");
-}
-
-// ============ Planner & Bucket Actions ============
-
-async function handlePlannerAdd(courseId) {
-	if (!courseId || plannerSelectionSet.has(courseId)) return;
-	await addCourseToPlannerSelection(courseId);
-	await loadSchedule();
-}
-
-async function handlePlannerRemove(courseId) {
-	if (!courseId) return;
-	await removeCourseFromPlannerSelection(courseId);
-	await loadSchedule();
-}
-
-async function handleBucketCreate() {
-	const content = document.createElement("div");
-	content.className = "input-group";
-	content.innerHTML = `
-        <label class="input-label">Bucket Name</label>
-        <input type="text" class="input-field" id="bucket-name-input" placeholder="e.g. Core Requirements" autofocus>
-    `;
-
-	// Focus input after modal opens
-	setTimeout(() => {
-		const input = document.getElementById("bucket-name-input");
-		if (input) input.focus();
-	}, 100);
-
-	const result = await showModal("// new bucket", content, [
-		{ label: "cancel", value: null },
-		{ label: "create", value: "create", primary: true },
-	]);
-
-	if (result !== "create") return;
-
-	const nameInput = document.getElementById("bucket-name-input");
-	const trimmedName = nameInput.value.trim();
-
-	if (!trimmedName) {
-		showToast("Bucket name cannot be empty", "error");
-		return;
-	}
-
-	const buckets = await getBuckets();
-	const maxPriority = buckets.reduce(
-		(max, bucket) => Math.max(max, bucket.priority ?? 0),
-		0,
-	);
-
-	// Default color
-	const defaultColor = "#57068c";
-
-	await createBucket({
-		name: trimmedName,
-		color: defaultColor,
-		priority: maxPriority + 1,
-	});
-	await loadSchedule();
-	showToast("Bucket created successfully", "success");
-}
-
-async function handleBucketRecolor(bucket) {
-	const palette = [
-		{ hex: "#57068c", name: "purple" },
-		{ hex: "#ef4444", name: "red" },
-		{ hex: "#f97316", name: "orange" },
-		{ hex: "#f59e0b", name: "amber" },
-		{ hex: "#84cc16", name: "lime" },
-		{ hex: "#10b981", name: "emerald" },
-		{ hex: "#06b6d4", name: "cyan" },
-		{ hex: "#3b82f6", name: "blue" },
-		{ hex: "#6366f1", name: "indigo" },
-		{ hex: "#d946ef", name: "fuchsia" },
-	];
-
-	const normalizedCurrent = (bucket.color || "").toLowerCase();
-
-	const content = document.createElement("div");
-	content.className = "color-picker";
-
-	const hint = document.createElement("p");
-	hint.className = "color-picker-hint";
-	hint.textContent = "// click a swatch to apply";
-	content.appendChild(hint);
-
-	const grid = document.createElement("div");
-	grid.className = "color-grid";
-	content.appendChild(grid);
-
-	const saveColor = async (color) => {
-		if (color !== bucket.color) {
-			await updateBucket(bucket.id, { color });
-			await loadSchedule();
-			showToast("Bucket color updated", "success");
-		}
-		const closeBtn = document.getElementById("modal-close");
-		if (closeBtn) closeBtn.click();
-	};
-
-	palette.forEach(({ hex, name }) => {
-		const option = document.createElement("button");
-		option.type = "button";
-		option.className = "color-option";
-		option.setAttribute("aria-label", `${name} — ${hex}`);
-		option.title = `${name} · ${hex}`;
-
-		const isSelected = hex.toLowerCase() === normalizedCurrent;
-		if (isSelected) {
-			option.classList.add("is-selected");
-			option.setAttribute("aria-pressed", "true");
-		} else {
-			option.setAttribute("aria-pressed", "false");
-		}
-
-		option.innerHTML = `
-			<span class="color-option-swatch" style="background: ${hex}">
-				<svg class="color-option-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-					<polyline points="20 6 9 17 4 12"></polyline>
-				</svg>
-			</span>
-			<span class="color-option-meta">
-				<span class="color-option-name">${name}</span>
-				<span class="color-option-hex">${hex}</span>
-			</span>
-		`;
-
-		option.addEventListener("click", () => saveColor(hex));
-		grid.appendChild(option);
-	});
-
-	await showModal("// bucket color", content, [
-		{ label: "cancel", value: null },
-	]);
-}
-
-function normalizeColorInput(input, fallback = "#57068c") {
-	if (typeof input !== "string") return fallback;
-	const value = input.trim();
-	if (!value) return fallback;
-	const hexMatch = value.match(/^#?([0-9a-f]{3}|[0-9a-f]{6})$/i);
-	if (!hexMatch) return fallback;
-	let hex = hexMatch[1];
-	if (hex.length === 3) {
-		hex = hex
-			.split("")
-			.map((char) => char + char)
-			.join("");
-	}
-	return `#${hex.toLowerCase()}`;
-}
-
-function cancelInlineRename() {
-	if (activeRenameState?.cancel) {
-		activeRenameState.cancel();
-	}
-}
-
-function startBucketRename(bucket, headerEl) {
-	if (!bucket?.id || deleteMode) return;
-
-	if (activeRenameState?.bucketId && activeRenameState.bucketId !== bucket.id) {
-		cancelInlineRename();
-	} else if (activeRenameState?.bucketId === bucket.id) {
-		return;
-	}
-
-	const labelEl = headerEl.querySelector(".bucket-label");
-	if (!labelEl) return;
-
-	const renameContainer = document.createElement("div");
-	renameContainer.className = "bucket-rename-inline";
-	const input = document.createElement("input");
-	input.type = "text";
-	input.value = bucket.name ?? "";
-	input.className = "bucket-rename-input";
-	input.setAttribute("maxlength", "80");
-
-	renameContainer.appendChild(input);
-	labelEl.replaceWith(renameContainer);
-
-	const cancel = () => {
-		if (!renameContainer.isConnected) {
-			activeRenameState = null;
-			return;
-		}
-		renameContainer.replaceWith(labelEl);
-		activeRenameState = null;
-	};
-
-	const commit = async () => {
-		const nextName = input.value.trim();
-		if (!nextName) {
-			// If empty, just cancel
-			cancel();
-			return;
-		}
-		if (nextName === bucket.name) {
-			cancel();
-			return;
-		}
-
-		input.disabled = true;
-		try {
-			await updateBucket(bucket.id, { name: nextName });
-		} catch (error) {
-			console.error("[Albert Enhancer] Failed to rename bucket", error);
-		}
-		activeRenameState = null;
-		await loadSchedule();
-	};
-
-	input.addEventListener("click", (event) => event.stopPropagation());
-
-	input.addEventListener("keydown", (event) => {
-		if (event.key === "Enter") {
-			event.preventDefault();
-			input.blur(); // Trigger blur to save
-		} else if (event.key === "Escape") {
-			event.preventDefault();
-			cancel();
-		}
-	});
-
-	input.addEventListener("blur", () => {
-		commit();
-	});
-
-	renameContainer.addEventListener("click", (event) => event.stopPropagation());
-
-	activeRenameState = {
-		bucketId: bucket.id,
-		cancel,
-		container: renameContainer,
-	};
-	input.focus();
-	input.select();
-}
-
-function toggleBucketDeleteSelection(bucketId, headerEl) {
-	if (!bucketId) return;
-	const isSelected = bucketsPendingDeletion.has(bucketId);
-	const pill = headerEl.querySelector(".bucket-delete-select");
-	if (isSelected) {
-		bucketsPendingDeletion.delete(bucketId);
-		headerEl.classList.remove("is-selected-for-delete");
-		pill?.classList.remove("is-selected");
-		if (pill) pill.textContent = "";
-	} else {
-		bucketsPendingDeletion.add(bucketId);
-		headerEl.classList.add("is-selected-for-delete");
-		pill?.classList.add("is-selected");
-		if (pill) pill.textContent = "✓";
-	}
-	updateDeleteButtonState();
-}
-
-function enterDeleteMode() {
-	deleteMode = true;
-	bucketsPendingDeletion.clear();
-	btnDeleteBucket.classList.add("is-active");
-	updateDeleteButtonState();
-	loadSchedule();
-}
-
-function exitDeleteMode() {
-	deleteMode = false;
-	bucketsPendingDeletion.clear();
-	btnDeleteBucket.classList.remove("is-active");
-	updateDeleteButtonState();
-	loadSchedule();
-}
-
-function updateDeleteButtonState() {
-	if (!btnDeleteBucket) return;
-
-	const trashIcon = `
-		<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-			<polyline points="3 6 5 6 21 6"></polyline>
-			<path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-		</svg>
-	`;
-
-	const cancelIcon = `
-		<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-			<line x1="18" y1="6" x2="6" y2="18"></line>
-			<line x1="6" y1="6" x2="18" y2="18"></line>
-		</svg>
-	`;
-
-	if (!deleteMode) {
-		btnDeleteBucket.innerHTML = trashIcon;
-		btnDeleteBucket.title = "Delete Buckets";
-		return;
-	}
-
-	const count = bucketsPendingDeletion.size;
-	if (count === 0) {
-		btnDeleteBucket.innerHTML = cancelIcon;
-		btnDeleteBucket.title = "Cancel Delete Mode";
-	} else {
-		btnDeleteBucket.innerHTML = trashIcon;
-		btnDeleteBucket.title = `Delete ${count} Selected Bucket${
-			count > 1 ? "s" : ""
-		}`;
-	}
-}
-
-async function deleteSelectedBuckets() {
-	const ids = Array.from(bucketsPendingDeletion);
-	if (!ids.length) return;
-	const message =
-		ids.length === 1
-			? "Delete selected bucket? Its courses will move to Unsorted."
-			: `Delete ${ids.length} buckets? Their courses will move to Unsorted.`;
-
-	const confirmed = await showModal("// delete buckets", message, [
-		{ label: "cancel", value: false },
-		{ label: "delete", value: true, danger: true },
-	]);
-
-	if (!confirmed) return;
-
-	for (const bucketId of ids) {
-		await deleteBucket(bucketId);
-		bucketCollapseState.delete(bucketId);
-	}
-	exitDeleteMode({ reload: false });
-	await loadSchedule();
-}
-
-// ============ Calendar Export ============
-
-async function handleExportCalendar() {
-	if (!btnExportCalendar) return;
-	const calendarEl = document.querySelector(".calendar-container");
-	if (!calendarEl) {
-		showToast("Calendar not ready", "error");
-		return;
-	}
-
-	const originalLabel = btnExportCalendar.querySelector(
-		".header-action-btn-label",
-	)?.textContent;
-	btnExportCalendar.disabled = true;
-	const labelEl = btnExportCalendar.querySelector(".header-action-btn-label");
-	if (labelEl) labelEl.textContent = "rendering";
-
-	try {
-		const blob = await renderElementToPng(calendarEl);
-		const url = URL.createObjectURL(blob);
-		const a = document.createElement("a");
-		const stamp = new Date().toISOString().slice(0, 10);
-		a.href = url;
-		a.download = `albert-calendar-${stamp}.png`;
-		document.body.appendChild(a);
-		a.click();
-		a.remove();
-		URL.revokeObjectURL(url);
-		showToast("Calendar exported", "success");
-	} catch (error) {
-		console.error("[Albert Enhancer] Calendar export failed:", error);
-		showToast("Export failed", "error");
-	} finally {
-		btnExportCalendar.disabled = false;
-		if (labelEl && originalLabel) labelEl.textContent = originalLabel;
-	}
-}
-
-function collectDocumentStyles() {
-	const parts = [];
-	for (const sheet of document.styleSheets) {
-		try {
-			const rules = sheet.cssRules;
-			if (!rules) continue;
-			for (const rule of rules) {
-				parts.push(rule.cssText);
-			}
-		} catch {
-			// cross-origin stylesheet — skip silently
-		}
-	}
-	return parts.join("\n");
-}
-
-async function renderElementToPng(element) {
-	const width = Math.max(element.scrollWidth, element.clientWidth);
-	const height = Math.max(element.scrollHeight, element.clientHeight);
-	const scale = window.devicePixelRatio > 1 ? 2 : 1;
-
-	const clone = element.cloneNode(true);
-	clone.querySelectorAll(".calendar-drag-overlay").forEach((el) => el.remove());
-	clone.style.width = `${width}px`;
-	clone.style.height = `${height}px`;
-	clone.style.overflow = "visible";
-
-	const cssText = collectDocumentStyles().replace(/]]>/g, "]]]]><![CDATA[>");
-	const bodyBg =
-		getComputedStyle(document.body).backgroundColor || "#ffffff";
-
-	const serializer = new XMLSerializer();
-	const cloneHtml = serializer.serializeToString(clone);
-
-	const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
-<foreignObject x="0" y="0" width="100%" height="100%">
-<div xmlns="http://www.w3.org/1999/xhtml" style="width:${width}px;height:${height}px;background:${bodyBg};">
-<style><![CDATA[${cssText}]]></style>
-${cloneHtml}
-</div>
-</foreignObject>
-</svg>`;
-
-	const parsed = new DOMParser().parseFromString(svg, "image/svg+xml");
-	const parseError = parsed.querySelector("parsererror");
-	if (parseError) {
-		console.error("[Albert Enhancer] SVG parse error:", parseError.textContent);
-		console.error("[Albert Enhancer] Offending SVG (first 2000 chars):", svg.slice(0, 2000));
-		throw new Error(`SVG parse error: ${parseError.textContent.slice(0, 200)}`);
-	}
-
-	const encoded = encodeURIComponent(svg)
-		.replace(/'/g, "%27")
-		.replace(/"/g, "%22");
-	const svgUrl = `data:image/svg+xml;charset=utf-8,${encoded}`;
-
-	const img = new Image();
-	await new Promise((resolve, reject) => {
-		img.onload = resolve;
-		img.onerror = (event) => {
-			console.error("[Albert Enhancer] img.onerror event:", event);
-			console.error("[Albert Enhancer] SVG length:", svg.length);
-			console.error("[Albert Enhancer] SVG head:", svg.slice(0, 500));
-			console.error("[Albert Enhancer] SVG tail:", svg.slice(-500));
-			reject(new Error("SVG image failed to load"));
-		};
-		img.src = svgUrl;
-	});
-
-	const canvas = document.createElement("canvas");
-	canvas.width = width * scale;
-	canvas.height = height * scale;
-	const ctx = canvas.getContext("2d");
-	ctx.fillStyle = bodyBg;
-	ctx.fillRect(0, 0, canvas.width, canvas.height);
-	ctx.setTransform(scale, 0, 0, scale, 0, 0);
-	ctx.drawImage(img, 0, 0);
-
-	return await new Promise((resolve, reject) => {
-		canvas.toBlob((blob) => {
-			if (blob) resolve(blob);
-			else reject(new Error("Canvas toBlob returned null"));
-		}, "image/png");
-	});
 }
 
 // ============ Event Listeners ============
 
 function setupEventListeners() {
-	btnAddBucket?.addEventListener("click", () => handleBucketCreate());
-	btnSidebarToggle?.addEventListener("click", toggleSidebar);
-	btnExportCalendar?.addEventListener("click", handleExportCalendar);
-	metadataDrawerClose?.addEventListener("click", closeCourseMetadataDrawer);
-	metadataDrawerBackdrop?.addEventListener("click", closeCourseMetadataDrawer);
+	dom.btnAddBucket?.addEventListener("click", () => handleBucketCreate());
+	dom.btnSidebarToggle?.addEventListener("click", toggleSidebar);
+	dom.btnExportCalendar?.addEventListener("click", handleExportCalendar);
+	dom.metadataDrawerClose?.addEventListener("click", closeCourseMetadataDrawer);
+	dom.metadataDrawerBackdrop?.addEventListener("click", closeCourseMetadataDrawer);
 
 	document
 		.querySelectorAll(
@@ -2171,17 +362,17 @@ function setupEventListeners() {
 			});
 		});
 
-	calendarGrid?.addEventListener("dragenter", handleCalendarDragEnter);
-	calendarGrid?.addEventListener("dragover", handleCalendarDragOver);
-	calendarGrid?.addEventListener("dragleave", handleCalendarDragLeave);
-	calendarGrid?.addEventListener("drop", handleCalendarDrop);
+	dom.calendarGrid?.addEventListener("dragenter", handleCalendarDragEnter);
+	dom.calendarGrid?.addEventListener("dragover", handleCalendarDragOver);
+	dom.calendarGrid?.addEventListener("dragleave", handleCalendarDragLeave);
+	dom.calendarGrid?.addEventListener("drop", handleCalendarDrop);
 
-	btnDeleteBucket?.addEventListener("click", () => {
-		if (!deleteMode) {
+	dom.btnDeleteBucket?.addEventListener("click", () => {
+		if (!state.deleteMode) {
 			enterDeleteMode();
 			return;
 		}
-		if (bucketsPendingDeletion.size === 0) {
+		if (state.bucketsPendingDeletion.size === 0) {
 			exitDeleteMode();
 			return;
 		}
@@ -2199,35 +390,42 @@ function setupEventListeners() {
 	});
 
 	document.addEventListener("professor-ratings-changed", async () => {
-		cachedProfRatings = await getProfessorRatings();
-		skipDrawerRefresh = true;
+		state.cachedProfRatings = await getProfessorRatings();
+		state.skipDrawerRefresh = true;
 		clearCourseBlocks();
 		await loadSchedule();
-		skipDrawerRefresh = false;
+		state.skipDrawerRefresh = false;
 	});
 
 	document.addEventListener("keydown", (event) => {
-		if (event.key === "Escape" && activeMetadataCourseId) {
+		if (event.key === "Escape" && state.activeMetadataCourseId) {
 			closeCourseMetadataDrawer();
 			return;
 		}
-		if (event.key === "Escape" && isSidebarOpen) {
+		if (event.key === "Escape" && state.isSidebarOpen) {
 			setSidebarOpen(false);
 		}
 	});
 }
 
-// ============ Utilities ============
+// ============ Initialization ============
 
-function clearCourseBlocks() {
-	const blocks = document.querySelectorAll(".course-block");
-	blocks.forEach((block) => block.remove());
+async function init() {
+	state.isSidebarOpen = getStoredSidebarPreference();
+	applySidebarState();
+	applySectionCollapseStates();
+	generateTimeLabels();
+	generateHourLines();
+	generateQuarterTicks();
+	renderTimeAnchors();
+	mountNowIndicator();
+	updateNowIndicator();
+	setInterval(updateNowIndicator, 60 * 1000);
+	await loadSchedule();
+	setupEventListeners();
 }
 
-function toggleCalendarEmptyState(isEmpty) {
-	if (!calendarEmptyState) return;
-	calendarEmptyState.classList.toggle("is-hidden", !isEmpty);
-}
+// Let feature modules trigger a full reload without importing this module.
+state.reload = loadSchedule;
 
-// Initialize view
 init();

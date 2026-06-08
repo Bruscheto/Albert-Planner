@@ -1,4 +1,4 @@
-# Fuck Albert — Project Instructions
+# Albert Planner — Project Instructions
 
 ## What this is
 Chrome extension (Manifest V3) that improves NYU Albert course registration. Scrapes shopping cart, renders weekly calendar, supports priority buckets and schedule planning.

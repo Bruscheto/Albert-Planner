@@ -1,6 +1,8 @@
 // Content script for Albert pages
 // Parses shopping cart on-demand when requested by popup
-// Note: Content scripts can't use ES module imports, so all code is inlined here
+// Note: Content scripts can't use *static* ES module imports, but they CAN use
+// dynamic import() of web_accessible_resources — so shared parsing logic is loaded
+// from src/utils/time-parser.js at runtime instead of being duplicated here.
 
 const DEBUG = true;
 const debugLog = (...args) => {
@@ -11,18 +13,18 @@ const debugLog = (...args) => {
 
 debugLog("Content script loaded at", window.location.href);
 
-// ============ Constants ============
-
-// Day abbreviation mapping - Albert uses Mo, Tu, We, Th, Fr, Sa, Su
-const DAY_MAP = {
-	Mo: "Mon",
-	Tu: "Tue",
-	We: "Wed",
-	Th: "Thu",
-	Fr: "Fri",
-	Sa: "Sat",
-	Su: "Sun",
-};
+// ============ Shared parsing logic (loaded via dynamic import) ============
+// Content scripts can't statically import, but a dynamic import() of a
+// web_accessible module works. Loaded once, then reused for every parse.
+let parserModulePromise = null;
+function loadParsers() {
+	if (!parserModulePromise) {
+		parserModulePromise = import(
+			chrome.runtime.getURL("src/utils/time-parser.js")
+		);
+	}
+	return parserModulePromise;
+}
 
 // ============ Selectors for new Albert page structure ============
 const SELECTORS = {
@@ -97,94 +99,32 @@ function findCartTable() {
 	return table || null;
 }
 
-// ============ Time Parsing ============
+// ============ Time Parsing (delegates to shared utils/time-parser.js) ============
 
 /**
- * Parse time string like "09:30", "14:00", "9:30AM", "2:00 PM"
+ * Parse days/times string like "TuTh 09:30 - 10:45" or "MoWe 11:00 AM - 12:15 PM".
+ * Splits the leading day codes from the time range, then delegates to the shared
+ * parseDays / parseTimeRange so there is a single source of truth.
+ * @param {string} daysTimesStr
+ * @param {{ parseDays: Function, parseTimeRange: Function }} parsers
  */
-function parseTime(timeStr) {
-	if (!timeStr) return null;
-	const normalized = timeStr.trim();
-
-	// Try 12-hour format first: "09:30 AM"
-	const match12 = normalized.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
-	if (match12) {
-		let hours = parseInt(match12[1], 10);
-		const minutes = parseInt(match12[2], 10);
-		const period = match12[3].toUpperCase();
-
-		if (hours < 1 || hours > 12 || minutes < 0 || minutes > 59) {
-			return null;
-		}
-
-		if (period === "PM" && hours !== 12) hours += 12;
-		if (period === "AM" && hours === 12) hours = 0;
-
-		return { hours, minutes };
-	}
-
-	// Try 24-hour format: "09:30" or "14:00"
-	const match24 = normalized.match(/^(\d{1,2}):(\d{2})$/);
-	if (match24) {
-		const hours = parseInt(match24[1], 10);
-		const minutes = parseInt(match24[2], 10);
-		if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) {
-			return null;
-		}
-		return { hours, minutes };
-	}
-
-	return null;
-}
-
-/**
- * Parse days/times string like "TuTh 09:30 - 10:45" or "MoWe 11:00 AM - 12:15 PM"
- */
-function parseDaysAndTime(daysTimesStr) {
+function parseDaysAndTime(daysTimesStr, parsers) {
 	if (!daysTimesStr || daysTimesStr.toUpperCase() === "TBA") {
 		return { days: [], timeRange: null, isTBA: true };
 	}
 
-	// Normalize whitespace
 	const normalized = daysTimesStr.replace(/\s+/g, " ").trim();
 
-	// Format: "TuTh 09:30 - 10:45" or "Fr 2:00PM - 3:15PM"
-	// Capture days, start time (with optional AM/PM), end time (with optional AM/PM)
-	const match = normalized.match(
-		/^([A-Za-z]+)\s+(\d{1,2}:\d{2}(?:\s*[AaPp][Mm])?)\s*-\s*(\d{1,2}:\d{2}(?:\s*[AaPp][Mm])?)$/,
-	);
-
+	// "TuTh 09:30 - 10:45" -> dayPart "TuTh", rest "09:30 - 10:45"
+	const match = normalized.match(/^([A-Za-z]+)\s+(.+)$/);
 	if (!match) {
 		return { days: [], timeRange: null, isTBA: true };
 	}
 
-	const daysStr = match[1];
-	const startStr = match[2];
-	const endStr = match[3];
+	const days = parsers.parseDays(match[1]);
+	const timeRange = parsers.parseTimeRange(match[2]);
 
-	// Parse days - extract 2-letter day codes
-	const days = [];
-	const dayOrder = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
-
-	for (const dayCode of dayOrder) {
-		if (daysStr.includes(dayCode)) {
-			days.push(DAY_MAP[dayCode]);
-		}
-	}
-
-	// Parse time range
-	const start = parseTime(startStr);
-	const end = parseTime(endStr);
-	const hasValidRange =
-		start &&
-		end &&
-		start.hours * 60 + start.minutes < end.hours * 60 + end.minutes;
-
-	return {
-		days,
-		timeRange: hasValidRange ? { start, end } : null,
-		isTBA: !hasValidRange,
-	};
+	return { days, timeRange, isTBA: !timeRange };
 }
 
 /**
@@ -225,7 +165,7 @@ function parseClassCode(linkText) {
 /**
  * Parse a single row from the shopping cart
  */
-function parseRow(row) {
+function parseRow(row, parsers) {
 	const layout = row.querySelector(SELECTORS.LAYOUT);
 	if (!layout) return null;
 
@@ -264,7 +204,7 @@ function parseRow(row) {
 		'[id^="DERIVED_REGFRM1_SSR_MTG_SCHED_LONG"]',
 	);
 	const daysTimesStr = daysTimesEl?.textContent?.trim() || "TBA";
-	const { days, timeRange, isTBA } = parseDaysAndTime(daysTimesStr);
+	const { days, timeRange, isTBA } = parseDaysAndTime(daysTimesStr, parsers);
 
 	// Location
 	const locationEl = layout.querySelector(
@@ -305,7 +245,7 @@ function parseRow(row) {
 /**
  * Parse the entire shopping cart and group courses with their recitations
  */
-function parseShoppingCart(existingTable = null) {
+function parseShoppingCart(existingTable, parsers) {
 	const cartTable = existingTable || findCartTable();
 	if (!cartTable) {
 		debugLog("Shopping cart table not found yet");
@@ -322,7 +262,7 @@ function parseShoppingCart(existingTable = null) {
 	let currentCourse = null;
 
 	for (const row of rows) {
-		const parsed = parseRow(row);
+		const parsed = parseRow(row, parsers);
 		if (!parsed) continue;
 
 		debugLog(
@@ -401,19 +341,23 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 		return false;
 	}
 
+	const isLikelyCartUrl = /NYU_SSENRL_CART/i.test(window.location.href);
+	const cartTable = findCartTable();
+
+	// Not this frame's job — let the frame that actually has the cart respond.
+	if (!cartTable && !isLikelyCartUrl) {
+		debugLog("Skipping parse request in non-cart frame", window.location.href);
+		return false;
+	}
+
+	// This frame will respond; loading the shared parser is async, so keep the
+	// message channel open by returning true below.
+	handleParseCart(cartTable, sendResponse);
+	return true;
+});
+
+async function handleParseCart(cartTable, sendResponse) {
 	try {
-		const isLikelyCartUrl = /NYU_SSENRL_CART/i.test(window.location.href);
-		const cartTable = findCartTable();
-
-		if (!cartTable && !isLikelyCartUrl) {
-			debugLog(
-				"Skipping parse request in non-cart frame",
-				window.location.href,
-			);
-			// Let other frames respond.
-			return false;
-		}
-
 		if (!cartTable) {
 			debugLog("No shopping cart found in this frame yet; logging tables");
 			logAvailableTables();
@@ -421,11 +365,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 				courses: [],
 				error: "Shopping cart table not found on this page.",
 			});
-			return false;
+			return;
 		}
 
 		debugLog("Parse request received in frame", window.location.href);
-		const courses = parseShoppingCart(cartTable);
+		const parsers = await loadParsers();
+		const courses = parseShoppingCart(cartTable, parsers);
 		debugLog("Parsed", courses.length, "courses", courses);
 		sendResponse({ courses });
 	} catch (error) {
@@ -435,9 +380,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 			error: "Failed to parse shopping cart.",
 		});
 	}
-
-	return false;
-});
+}
 
 // ============ Drawer Panel Injection ============
 

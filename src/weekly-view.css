@@ -1016,15 +1016,39 @@ body.weekly-sidebar-collapsed .sidebar {
 	gap: 2px;
 	font-family: var(--font-mono);
 	font-size: 11.5px;
-	padding: 8px 0 8px 10px;
+	padding: 8px 0 8px 12px;
 	border-bottom: 1px solid rgba(87, 6, 140, 0.05);
-	border-left: 2px solid transparent;
 	position: relative;
-	transition: background 0.12s ease, border-left-color 0.15s ease;
+	cursor: grab;
+	transition:
+		background 0.12s ease,
+		box-shadow 0.15s ease;
+}
+
+/* Course-color accent bar — animated with transform (GPU) for smoothness */
+.bucket-course-entry::before {
+	content: "";
+	position: absolute;
+	left: 0;
+	top: 0;
+	bottom: 0;
+	width: 2px;
+	background: var(--course-accent, transparent);
+	transform-origin: right center;
+	transition: transform 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.bucket-course-entry:active {
+	cursor: grabbing;
 }
 
 .bucket-course-entry:hover {
-	background: rgba(87, 6, 140, 0.025);
+	background: rgba(87, 6, 140, 0.045);
+	box-shadow: 0 2px 8px rgba(87, 6, 140, 0.06);
+}
+
+.bucket-course-entry:hover::before {
+	transform: scaleX(2);
 }
 
 .bucket-course-entry.is-dragging {
@@ -1103,20 +1127,6 @@ body.weekly-sidebar-collapsed .sidebar {
 
 .course-icon-btn--edit:active {
 	background: rgba(87, 6, 140, 0.14);
-}
-
-.course-icon-btn--drag {
-	cursor: grab;
-	opacity: 0.5;
-}
-
-.course-icon-btn--drag:hover {
-	opacity: 1;
-	background: rgba(17, 24, 39, 0.06);
-}
-
-.course-icon-btn--drag:active {
-	cursor: grabbing;
 }
 
 .bucket-course-entry:last-child {

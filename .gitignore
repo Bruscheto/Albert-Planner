@@ -1,2 +1,5 @@
 .DS_Store
+.test-harness
 plan/
+test-harness.html
+.claude/CLAUDE.md

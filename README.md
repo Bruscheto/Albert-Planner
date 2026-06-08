@@ -22,7 +22,7 @@ Works on Chrome and Edge (Chromium-based).
 ## Project structure
 
 ```
-fuck-albert/
+albert-planner/
 ├── manifest.json
 ├── assets/                     # Extension icons (16/48/128)
 ├── plan/                       # Dev planning docs

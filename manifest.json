@@ -1,8 +1,8 @@
 {
 	"manifest_version": 3,
-	"name": "Fuck Albert",
+	"name": "Albert Planner",
 	"version": "1.0.0",
-	"description": "I hate Albert, so I decide to make a chrome extension to make my life easier. Hope it helps you too.",
+	"description": "Plan your NYU Albert schedule — scrapes your shopping cart into a weekly calendar with conflict detection and priority buckets.",
 	"permissions": [
 		"storage",
 		"activeTab",
@@ -27,7 +27,7 @@
 	],
 	"action": {
 		"default_popup": "src/popup.html",
-		"default_title": "Fuck Albert",
+		"default_title": "Albert Planner",
 		"default_icon": {
 			"16": "assets/icon16.png",
 			"48": "assets/icon48.png",
@@ -60,6 +60,18 @@
 				"src/weekly-view.html",
 				"src/weekly-view.css",
 				"src/weekly-view.js",
+				"src/weekly-view/config.js",
+				"src/weekly-view/context.js",
+				"src/weekly-view/colors.js",
+				"src/weekly-view/layout.js",
+				"src/weekly-view/ui-feedback.js",
+				"src/weekly-view/calendar-grid.js",
+				"src/weekly-view/calendar-export.js",
+				"src/weekly-view/bucket-actions.js",
+				"src/weekly-view/metadata-drawer.js",
+				"src/weekly-view/drag-drop.js",
+				"src/weekly-view/course-blocks.js",
+				"src/weekly-view/buckets.js",
 				"src/course-storage.js",
 				"src/planner.js",
 				"src/bucket-manager.js",
