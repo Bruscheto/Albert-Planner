@@ -1,5 +1,49 @@
+# macOS
 .DS_Store
-.test-harness
-plan/
-test-harness.html
+.AppleDouble
+.LSOverride
+Icon
+._*
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Local env and secrets
+.env
+.env.*
+!.env.example
+*.pem
+
+# Dependencies
+node_modules/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Test and coverage output
+coverage/
+.nyc_output/
+playwright-report/
+test-results/
+
+# Build and package output
+dist/
+build/
+out/
+*.zip
+*.crx
+
+# Local tool state
+.worktrees/
+.test-harness/
 .claude/CLAUDE.md
+AGENTS.md
+/plan
