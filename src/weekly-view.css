@@ -446,6 +446,7 @@ body.weekly-sidebar-collapsed .sidebar {
 .sidebar-section {
 	display: flex;
 	flex-direction: column;
+	min-width: 0;
 }
 
 .sidebar-section h3 {
@@ -505,7 +506,9 @@ body.weekly-sidebar-collapsed .sidebar {
 	border-radius: var(--radius-sm);
 	padding: 6px 8px 8px;
 	margin: -6px -8px 12px;
-	transition: background 0.15s ease;
+	transition:
+		background 0.15s ease,
+		margin-bottom 0.25s ease;
 }
 
 .sidebar-section[data-section] > .sidebar-section-header:hover {
@@ -541,10 +544,14 @@ body.weekly-sidebar-collapsed .sidebar {
 		grid-template-rows 0.25s ease,
 		opacity 0.25s ease;
 	overflow: hidden;
+	min-width: 0;
 }
 
 .sidebar-section-body-inner {
 	min-height: 0;
+	min-width: 0;
+	max-width: 100%;
+	overflow: hidden;
 }
 
 .sidebar-section.is-collapsed > .sidebar-section-body {
@@ -602,6 +609,7 @@ body.weekly-sidebar-collapsed .sidebar {
 	display: flex;
 	flex-direction: column;
 	gap: 4px;
+	min-width: 0;
 }
 
 .tray-empty {
@@ -623,6 +631,8 @@ body.weekly-sidebar-collapsed .sidebar {
 	align-items: center;
 	justify-content: space-between;
 	gap: 8px;
+	min-width: 0;
+	max-width: 100%;
 	padding: 8px 10px 8px 12px;
 	background: var(--card-bg-solid);
 	border: 1px solid var(--border-color);
@@ -672,19 +682,17 @@ body.weekly-sidebar-collapsed .sidebar {
 	display: flex;
 	align-items: center;
 	gap: 2px;
+	min-width: 0;
 	flex-shrink: 0;
 }
 
-.planner-bucket-tag {
-	font-family: var(--font-mono);
-	font-size: 10px;
-	font-weight: 600;
-	color: var(--nyu-purple);
-	background: transparent;
-	border: 1px solid rgba(87, 6, 140, 0.22);
-	border-radius: 4px;
-	padding: 1px 6px;
-	letter-spacing: 0.02em;
+.planner-bucket-dot {
+	width: 8px;
+	height: 8px;
+	border-radius: 999px;
+	background: var(--text-secondary);
+	box-shadow: 0 0 0 2px rgba(17, 24, 39, 0.06);
+	flex-shrink: 0;
 }
 
 .course-online-tag {
@@ -1607,8 +1615,8 @@ body.weekly-sidebar-collapsed .calendar-container {
 	overflow: hidden;
 	cursor: grab;
 	transition:
-		box-shadow 0.15s,
-		transform 0.1s,
+		filter 0.16s ease,
+		box-shadow 0.16s ease,
 		opacity 0.12s ease;
 	box-shadow:
 		0 2px 6px rgba(0, 0, 0, 0.1),
@@ -1620,10 +1628,38 @@ body.weekly-sidebar-collapsed .calendar-container {
 	gap: 2px;
 }
 
+.course-block.has-bucket-accent {
+	padding-left: 11px;
+}
+
+.course-block.has-bucket-accent::before {
+	content: "";
+	position: absolute;
+	top: 0;
+	left: 0;
+	bottom: 0;
+	width: 3px;
+	background: var(--bucket-accent);
+}
+
+.course-block.has-bucket-accent::after {
+	content: "";
+	position: absolute;
+	top: 0;
+	left: 3px;
+	bottom: 0;
+	width: 1px;
+	background: rgba(255, 255, 255, 0.78);
+}
+
 /* Compact mode for short classes (≤55 min) — hide title, tighten layout */
 .course-block.is-compact {
 	padding: 4px 8px 4px;
 	gap: 1px;
+}
+
+.course-block.is-compact.has-bucket-accent {
+	padding-left: 10px;
 }
 
 .course-block.is-compact .course-block-title {
@@ -1642,9 +1678,9 @@ body.weekly-sidebar-collapsed .calendar-container {
 
 .course-block:hover {
 	box-shadow:
-		0 6px 16px rgba(0, 0, 0, 0.15),
-		0 0 0 1px rgba(255, 255, 255, 0.15) inset;
-	transform: scale(1.015);
+		0 8px 18px rgba(17, 24, 39, 0.16),
+		0 0 0 1px rgba(255, 255, 255, 0.18) inset;
+	filter: brightness(1.05) saturate(1.04);
 	z-index: 20;
 }
 
@@ -1658,21 +1694,16 @@ body.weekly-sidebar-collapsed .calendar-container {
 	border: 2px dashed var(--conflict-border, #dc2626);
 }
 
-/* Hover-to-locate: a course card in the sidebar is hovered. The matching
-   block(s) lift forward with a soft purple glow (matching the app's
-   purple-tinted shadow language); a hairline keeps it crisp on any fill,
-   including red conflict blocks. Every other block dims so the target pops. */
 .course-block.is-hover-highlight {
 	z-index: 30;
-	transform: scale(1.03);
 	box-shadow:
-		0 0 0 1.5px rgba(255, 255, 255, 0.85),
-		0 0 0 3.5px var(--nyu-purple),
-		0 10px 30px rgba(87, 6, 140, 0.45);
+		0 8px 18px rgba(87, 6, 140, 0.2),
+		0 3px 8px rgba(17, 24, 39, 0.1),
+		0 0 0 1px rgba(255, 255, 255, 0.26) inset;
 }
 
 .calendar-grid.has-hover-highlight .course-block:not(.is-hover-highlight) {
-	opacity: 0.38;
+	opacity: 0.28;
 }
 
 .course-block.is-online {
@@ -1857,9 +1888,8 @@ body.weekly-sidebar-collapsed .calendar-container {
 	--dot-halo: rgba(255, 255, 255, 0.12);
 }
 
-.course-block-pill.bucket {
-	--dot-color: rgba(255, 255, 255, 0.9);
-	--dot-halo: rgba(255, 255, 255, 0.15);
+.course-block-pill.type-recitation {
+	margin-left: auto;
 }
 
 .course-block-pill.rating {
@@ -2589,11 +2619,12 @@ body.metadata-drawer-open .course-metadata-drawer {
 }
 
 .course-block:focus-visible {
-	outline: 2px solid white;
-	outline-offset: -2px;
+	outline: none;
 	box-shadow:
-		0 0 0 4px var(--nyu-purple),
-		0 6px 16px rgba(0, 0, 0, 0.15);
+		0 8px 22px rgba(87, 6, 140, 0.18),
+		0 2px 8px rgba(0, 0, 0, 0.12),
+		0 0 0 1px rgba(255, 255, 255, 0.38) inset,
+		0 0 0 2px rgba(87, 6, 140, 0.16);
 	z-index: 20;
 }
 

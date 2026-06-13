@@ -365,11 +365,11 @@ export function renderPlanningTray(plannedCourses, bucketMap) {
 		const bucketInfo = course.bucket ? bucketMap.get(course.bucket) : null;
 		if (bucketInfo) {
 			const tag = document.createElement("span");
-			tag.className = "planner-bucket-tag";
-			tag.textContent = bucketInfo.name;
+			tag.className = "planner-bucket-dot";
+			tag.ariaLabel = bucketInfo.name;
+			tag.title = bucketInfo.name;
 			if (bucketInfo.color) {
-				tag.style.backgroundColor = `${bucketInfo.color}22`;
-				tag.style.color = bucketInfo.color;
+				tag.style.backgroundColor = bucketInfo.color;
 			}
 			actions.appendChild(tag);
 		}

@@ -94,6 +94,10 @@ function createCourseBlock(component, bucketDetails, options = {}) {
 	}
 
 	const bucketInfo = component.bucket ? bucketDetails[component.bucket] : null;
+	if (bucketInfo?.color) {
+		block.classList.add("has-bucket-accent");
+		block.style.setProperty("--bucket-accent", bucketInfo.color);
+	}
 	const color = courseCodeToColor(component.courseCode);
 	if (!isConflict) {
 		block.style.backgroundColor = color;
@@ -109,12 +113,12 @@ function createCourseBlock(component, bucketDetails, options = {}) {
 	const endStr = formatTime(component.timeRange.end);
 	const online = isComponentOnline(component);
 	if (online) block.classList.add("is-online");
-	const bucketPillContent = bucketInfo
-		? `<span class="course-block-pill bucket">${bucketInfo.name}</span>`
-		: "";
+	const isRecitation = component.type === "Recitation";
+	const typeLabel =
+		isRecitation ? "reci." : component.type;
 	const typePill =
 		component.type && component.type !== "Lecture"
-			? `<span class="course-block-pill type">${component.type}</span>`
+			? `<span class="course-block-pill type${isRecitation ? " type-recitation" : ""}">${typeLabel}</span>`
 			: "";
 
 	let ratingPill = "";
@@ -130,10 +134,10 @@ function createCourseBlock(component, bucketDetails, options = {}) {
 		ratingPill = `<span class="course-block-pill rating rating-${tier}">${r}</span>`;
 	}
 
-	const allPills =
-		bucketPillContent || typePill || ratingPill
-			? `<div class="course-block-tags">${typePill}${bucketPillContent}${ratingPill}</div>`
-			: "";
+	const pillContent = `${typePill}${ratingPill}`;
+	const allPills = pillContent
+		? `<div class="course-block-tags">${pillContent}</div>`
+		: "";
 	const conflictMarker =
 		'<button type="button" class="course-block-remove-btn" aria-label="Remove course from schedule" title="Remove from schedule"><svg class="course-block-remove-icon" width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true"><path d="M1.5 1.5L8.5 8.5M8.5 1.5L1.5 8.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>';
 	block.innerHTML = `
@@ -145,6 +149,7 @@ function createCourseBlock(component, bucketDetails, options = {}) {
   `;
 
 	const removeButton = block.querySelector(".course-block-remove-btn");
+
 	if (removeButton) {
 		removeButton.addEventListener("pointerdown", (event) => {
 			event.preventDefault();

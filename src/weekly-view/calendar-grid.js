@@ -35,7 +35,7 @@ export function generateHourLines() {
 		const slotsContainer = document.getElementById(`slots-${day}`);
 		if (!slotsContainer) continue;
 		slotsContainer.innerHTML = "";
-		for (let offset = 0; offset <= hours; offset++) {
+		for (let offset = 1; offset <= hours; offset++) {
 			const line = document.createElement("div");
 			line.className = "hour-line";
 			line.style.top = `${offset * HOUR_HEIGHT}px`;

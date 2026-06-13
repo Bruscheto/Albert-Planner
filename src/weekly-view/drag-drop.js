@@ -222,7 +222,10 @@ function showDragPreview(courseId) {
 			ghost.style.height = `${Math.max(height, 18)}px`;
 			ghost.style.setProperty("--ghost-accent", accentColor);
 
-			const typeLabel = (component.type || "Class").toUpperCase();
+			const typeLabel =
+				component.type === "Recitation"
+					? "RECI."
+					: (component.type || "Class").toUpperCase();
 			const timeLabel = `${formatTime(component.timeRange.start)} – ${formatTime(component.timeRange.end)}`;
 			ghost.innerHTML = `
 				<div class="course-block-ghost-head">

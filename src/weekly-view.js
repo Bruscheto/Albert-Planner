@@ -340,11 +340,18 @@ function renderConflictsSidebar(conflicts = [], conflictColorMap = new Map(), wa
 // ============ Event Listeners ============
 
 function setupEventListeners() {
-	dom.btnAddBucket?.addEventListener("click", () => handleBucketCreate());
+	dom.btnAddBucket?.addEventListener("click", () => {
+		if (state.deleteMode) {
+			exitDeleteMode();
+			return;
+		}
+		handleBucketCreate();
+	});
 	dom.btnSidebarToggle?.addEventListener("click", toggleSidebar);
 	dom.btnExportCalendar?.addEventListener("click", handleExportCalendar);
 	dom.metadataDrawerClose?.addEventListener("click", closeCourseMetadataDrawer);
 	dom.metadataDrawerBackdrop?.addEventListener("click", closeCourseMetadataDrawer);
+	document.addEventListener("click", handleDeleteModeOutsideClick, true);
 
 	document
 		.querySelectorAll(
@@ -407,6 +414,23 @@ function setupEventListeners() {
 			setSidebarOpen(false);
 		}
 	});
+}
+
+function handleDeleteModeOutsideClick(event) {
+	if (!state.deleteMode) return;
+
+	const target = event.target;
+	if (!(target instanceof Element)) return;
+	if (
+		target.closest("#btn-delete-bucket") ||
+		target.closest("#sidebar-buckets")
+	) {
+		return;
+	}
+
+	exitDeleteMode();
+	event.preventDefault();
+	event.stopPropagation();
 }
 
 // ============ Initialization ============

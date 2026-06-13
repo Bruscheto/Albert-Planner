@@ -23,8 +23,8 @@ export const DAY_MAP = {
 export const DAY_ABBREVS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
 
 export const DEFAULT_BUCKETS = [
-	{ id: "required", name: "Required", color: "#ef4444", priority: 1 },
-	{ id: "high", name: "High Priority", color: "#f97316", priority: 2 },
+	{ id: "required", name: "Required", color: "#f97316", priority: 1 },
+	{ id: "high", name: "High Priority", color: "#3b82f6", priority: 2 },
 	{ id: "medium", name: "Medium Priority", color: "#eab308", priority: 3 },
 	{ id: "low", name: "Low Priority", color: "#22c55e", priority: 4 },
 	{ id: "backup", name: "Backup", color: "#6b7280", priority: 5 },

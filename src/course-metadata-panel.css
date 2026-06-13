@@ -84,6 +84,7 @@
 	color: var(--nyu-purple);
 	text-decoration: none;
 	font-weight: 500;
+	margin-right: 3px;
 	transition: color 0.12s;
 }
 
