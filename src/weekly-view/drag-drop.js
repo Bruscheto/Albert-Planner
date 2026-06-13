@@ -8,7 +8,6 @@ import { hasConflict } from "../utils/calendar-utils.js";
 import {
 	assignCourseToBucket,
 	addCourseToPlannerSelection,
-	removeCourseFromPlannerSelection,
 } from "../course-storage.js";
 import { showToast } from "./ui-feedback.js";
 
@@ -20,11 +19,14 @@ export function handleCourseDragStart(event) {
 	state.draggedFromBucketId = event.currentTarget?.dataset?.bucketId || null;
 	event.dataTransfer?.setData("text/plain", courseId);
 	event.dataTransfer.effectAllowed = "move";
-	event.currentTarget.classList.add("dragging");
+	setCalendarCourseDragState(courseId, true);
 }
 
 export function handleCourseDragEnd(event) {
-	event.currentTarget.classList.remove("dragging");
+	const courseId = event.currentTarget?.dataset?.courseId || state.draggedCourseId;
+	if (courseId) {
+		setCalendarCourseDragState(courseId, false);
+	}
 	state.lastCourseBlockDragEndedAt = Date.now();
 	resetDragPayload();
 }
@@ -105,7 +107,6 @@ async function completeBucketDrop(bucketId) {
 		if (bucketId !== state.draggedFromBucketId) {
 			await assignCourseToBucket(state.draggedCourseId, bucketId || null);
 		}
-		await removeCourseFromPlannerSelection(state.draggedCourseId);
 	} else if (
 		state.draggedSource === "bucket" &&
 		bucketId !== state.draggedFromBucketId
@@ -170,10 +171,20 @@ export async function handleCalendarDrop(event) {
 function resetDragPayload() {
 	const targets = document.querySelectorAll(".is-drop-target");
 	targets.forEach((el) => el.classList.remove("is-drop-target"));
+	document
+		.querySelectorAll(".course-block.dragging")
+		.forEach((block) => block.classList.remove("dragging"));
 	dom.calendarGrid?.classList.remove("drag-over");
 	state.draggedCourseId = null;
 	state.draggedSource = null;
 	state.draggedFromBucketId = null;
+}
+
+function setCalendarCourseDragState(courseId, isDragging) {
+	const selector = `.course-block[data-course-id="${CSS.escape(courseId)}"]`;
+	for (const block of document.querySelectorAll(selector)) {
+		block.classList.toggle("dragging", isDragging);
+	}
 }
 
 function showDragPreview(courseId) {

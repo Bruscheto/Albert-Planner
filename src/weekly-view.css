@@ -1626,6 +1626,7 @@ body.weekly-sidebar-collapsed .calendar-container {
 	display: flex;
 	flex-direction: column;
 	gap: 2px;
+	container-type: inline-size;
 }
 
 .course-block.has-bucket-accent {
@@ -1838,6 +1839,26 @@ body.weekly-sidebar-collapsed .calendar-container {
 	font-weight: 500;
 	letter-spacing: 0.02em;
 	font-variant-numeric: tabular-nums;
+}
+
+@container (max-width: 132px) {
+	.course-block-code {
+		display: block;
+		white-space: normal;
+		overflow: visible;
+		text-overflow: clip;
+		line-height: 1.12;
+	}
+
+	.course-block-title {
+		display: none;
+	}
+}
+
+@container (max-width: 86px) {
+	.course-block-time {
+		display: none;
+	}
 }
 
 .course-block-tags {
