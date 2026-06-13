@@ -55,6 +55,7 @@ import {
 	handleCalendarDragLeave,
 	handleCalendarDrop,
 } from "./weekly-view/drag-drop.js";
+import { setupHoverHighlight } from "./weekly-view/hover-highlight.js";
 
 const SIDEBAR_STORAGE_KEY = "weeklySidebarOpen";
 const SECTION_COLLAPSE_KEY = "weeklySectionCollapseState";
@@ -423,6 +424,7 @@ async function init() {
 	setInterval(updateNowIndicator, 60 * 1000);
 	await loadSchedule();
 	setupEventListeners();
+	setupHoverHighlight();
 }
 
 // Let feature modules trigger a full reload without importing this module.

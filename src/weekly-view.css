@@ -1608,7 +1608,8 @@ body.weekly-sidebar-collapsed .calendar-container {
 	cursor: grab;
 	transition:
 		box-shadow 0.15s,
-		transform 0.1s;
+		transform 0.1s,
+		opacity 0.12s ease;
 	box-shadow:
 		0 2px 6px rgba(0, 0, 0, 0.1),
 		0 0 0 1px rgba(255, 255, 255, 0.1) inset;
@@ -1655,6 +1656,21 @@ body.weekly-sidebar-collapsed .calendar-container {
 .course-block.conflict {
 	background: var(--conflict-fill, #ef4444);
 	border: 2px dashed var(--conflict-border, #dc2626);
+}
+
+/* Hover-to-locate: a course card in the sidebar is hovered. The matching
+   block(s) get a ring that reads on any fill (incl. red conflict blocks) and
+   come to the front; every other block dims so the target pops. */
+.course-block.is-hover-highlight {
+	z-index: 30;
+	box-shadow:
+		0 0 0 2px #fff,
+		0 0 0 4px var(--nyu-purple),
+		0 8px 20px rgba(0, 0, 0, 0.22);
+}
+
+.calendar-grid.has-hover-highlight .course-block:not(.is-hover-highlight) {
+	opacity: 0.4;
 }
 
 .course-block.is-online {
