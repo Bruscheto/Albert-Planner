@@ -25,6 +25,7 @@ export const state = {
 	dragPreviewCursorHandler: null,
 	cachedProfRatings: {},
 	skipDrawerRefresh: false,
+	showConflicts: true,
 	// Reloads the whole schedule. Wired up by weekly-view.js during init so
 	// feature modules can trigger a refresh without importing the entry module.
 	reload: async () => {},
@@ -48,6 +49,7 @@ export const dom = {
 	btnDeleteBucket: document.getElementById("btn-delete-bucket"),
 	btnSidebarToggle: document.getElementById("btn-sidebar-toggle"),
 	btnExportCalendar: document.getElementById("btn-export-calendar"),
+	toggleConflicts: document.getElementById("toggle-conflicts"),
 	weeklySidebar: document.getElementById("weekly-sidebar"),
 	metadataDrawer: document.getElementById("course-metadata-drawer"),
 	metadataDrawerBackdrop: document.getElementById("course-metadata-backdrop"),

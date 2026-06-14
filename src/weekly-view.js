@@ -60,6 +60,7 @@ import { setupHoverHighlight } from "./weekly-view/hover-highlight.js";
 const SIDEBAR_STORAGE_KEY = "weeklySidebarOpen";
 const SECTION_COLLAPSE_KEY = "weeklySectionCollapseState";
 const ACTIVE_TERM_KEY = "activeTerm";
+const SHOW_CONFLICTS_KEY = "weeklyShowConflicts";
 
 // ============ Section Collapse ============
 
@@ -150,6 +151,33 @@ function toggleSidebar() {
 	setSidebarOpen(!state.isSidebarOpen);
 }
 
+// ============ Conflicts Toggle ============
+
+function getStoredShowConflicts() {
+	try {
+		return window.localStorage.getItem(SHOW_CONFLICTS_KEY) !== "false";
+	} catch (error) {
+		return true;
+	}
+}
+
+function applyConflictsToggleState() {
+	if (dom.toggleConflicts) {
+		dom.toggleConflicts.checked = state.showConflicts;
+	}
+}
+
+function setShowConflicts(nextOn) {
+	state.showConflicts = Boolean(nextOn);
+	applyConflictsToggleState();
+	try {
+		window.localStorage.setItem(SHOW_CONFLICTS_KEY, String(state.showConflicts));
+	} catch (error) {
+		// Ignore storage access failures in extension contexts.
+	}
+	loadSchedule();
+}
+
 // ============ Schedule load ============
 
 function getTermBadgeLabel(courses, activeTerm = null) {
@@ -211,7 +239,7 @@ async function loadSchedule() {
 		const incompleteWarnings = checkIncompleteScheduling(plannedCourses);
 		renderConflictsSidebar(conflicts, conflictColorMap, incompleteWarnings);
 		renderCourseBlocks(plannedSchedule, buckets, {
-			highlightConflicts: conflictCourseIds.size > 0,
+			highlightConflicts: state.showConflicts && conflictCourseIds.size > 0,
 			conflictCourseIds,
 			conflictColorMap,
 		});
@@ -374,6 +402,9 @@ function setupEventListeners() {
 	});
 	dom.btnSidebarToggle?.addEventListener("click", toggleSidebar);
 	dom.btnExportCalendar?.addEventListener("click", handleExportCalendar);
+	dom.toggleConflicts?.addEventListener("change", (event) => {
+		setShowConflicts(event.target.checked);
+	});
 	dom.metadataDrawerClose?.addEventListener("click", closeCourseMetadataDrawer);
 	dom.metadataDrawerBackdrop?.addEventListener("click", closeCourseMetadataDrawer);
 	document.addEventListener("click", handleDeleteModeOutsideClick, true);
@@ -467,6 +498,8 @@ function handleDeleteModeOutsideClick(event) {
 async function init() {
 	state.isSidebarOpen = getStoredSidebarPreference();
 	applySidebarState();
+	state.showConflicts = getStoredShowConflicts();
+	applyConflictsToggleState();
 	applySectionCollapseStates();
 	generateTimeLabels();
 	generateHourLines();

@@ -199,6 +199,75 @@ h4 {
 	gap: 8px;
 }
 
+.conflicts-toggle {
+	display: inline-flex;
+	align-items: center;
+	gap: 7px;
+	padding: 3px 10px;
+	border-radius: 999px;
+	border: 1px solid var(--border-color);
+	background: var(--accent-softer);
+	color: var(--text-secondary);
+	font-family: var(--font-mono);
+	font-size: 9px;
+	font-weight: 500;
+	letter-spacing: 0.14em;
+	text-transform: uppercase;
+	line-height: 1;
+	cursor: pointer;
+	user-select: none;
+	transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+
+.conflicts-toggle:hover {
+	color: var(--nyu-purple);
+	border-color: rgba(87, 6, 140, 0.35);
+	background: var(--accent-soft);
+}
+
+.conflicts-toggle input {
+	position: absolute;
+	opacity: 0;
+	width: 0;
+	height: 0;
+}
+
+.conflicts-track {
+	position: relative;
+	display: inline-block;
+	width: 22px;
+	height: 13px;
+	border-radius: 999px;
+	background: rgba(26, 24, 37, 0.18);
+	flex-shrink: 0;
+	transition: background 0.18s ease;
+}
+
+.conflicts-thumb {
+	position: absolute;
+	top: 2px;
+	left: 2px;
+	width: 9px;
+	height: 9px;
+	border-radius: 999px;
+	background: #fff;
+	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+	transition: transform 0.18s ease;
+}
+
+.conflicts-toggle input:checked ~ .conflicts-track {
+	background: var(--nyu-purple);
+}
+
+.conflicts-toggle input:checked ~ .conflicts-track .conflicts-thumb {
+	transform: translateX(9px);
+}
+
+.conflicts-toggle input:focus-visible ~ .conflicts-track {
+	outline: 2px solid var(--nyu-purple);
+	outline-offset: 2px;
+}
+
 .header-stat {
 	display: inline-flex;
 	align-items: center;
@@ -1412,6 +1481,7 @@ body.weekly-sidebar-collapsed .calendar-container {
 	box-shadow: var(--shadow-lg);
 	color: var(--text-secondary);
 	pointer-events: none;
+	z-index: 5;
 	transition: opacity 0.2s ease;
 }
 
@@ -1702,7 +1772,6 @@ body.weekly-sidebar-collapsed .calendar-container {
 
 .course-block.conflict {
 	background: var(--conflict-fill, #ef4444);
-	border: 2px dashed var(--conflict-border, #dc2626);
 }
 
 .course-block.is-hover-highlight {
