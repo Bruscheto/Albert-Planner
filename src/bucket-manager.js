@@ -94,10 +94,9 @@ function createCourseElement(course, options = {}) {
 	div.dataset.courseId = course.id;
 
 	const lectureComponent = getLectureComponent(course);
-	const hasRecitation = courseHasRecitation(course);
 	const isOnline = isCourseOnline(course);
 	const timeLabel = formatLectureTime(lectureComponent);
-	const dayDots = renderDayDots(lectureComponent);
+	const dayDots = renderDayDots(course);
 	const creditsLabel = Number.isFinite(course.credits)
 		? course.credits
 		: lectureComponent?.credits ?? "-";
@@ -107,11 +106,6 @@ function createCourseElement(course, options = {}) {
 			<div class="course-code">${course.courseCode}</div>
 			<div class="course-card-actions">
 				${isOnline ? '<span class="course-badge course-badge-online">Online</span>' : ""}
-				${
-					hasRecitation
-						? '<span class="course-badge course-badge-recitation">R</span>'
-						: ""
-				}
 				<button type="button" class="course-card-edit" aria-label="Edit course metadata" title="Edit course metadata">✏️</button>
 			</div>
 		</div>
@@ -144,6 +138,7 @@ const DAY_DOT_ORDER = [
 	{ label: "T", day: "Tue" },
 	{ label: "W", day: "Wed" },
 	{ label: "R", day: "Thu" },
+	{ label: "F", day: "Fri" },
 ];
 
 function getLectureComponent(course) {
@@ -153,14 +148,6 @@ function getLectureComponent(course) {
 		) ||
 		course?.components?.[0] ||
 		null
-	);
-}
-
-function courseHasRecitation(course) {
-	return Boolean(
-		course?.components?.some(
-			(component) => component?.type?.toLowerCase() === "recitation"
-		)
 	);
 }
 
@@ -174,10 +161,12 @@ function formatLectureTime(component) {
 	return `${start} - ${end}`;
 }
 
-function renderDayDots(component) {
-	const lectureDays = component?.days || [];
+function renderDayDots(course) {
+	const meetingDays = new Set(
+		(course?.components || []).flatMap((component) => component?.days || [])
+	);
 	return DAY_DOT_ORDER.map(({ label, day }) => {
-		const isActive = lectureDays.includes(day);
+		const isActive = meetingDays.has(day);
 		return `<span class="day-dot${isActive ? " active" : ""}">${label}</span>`;
 	}).join("");
 }

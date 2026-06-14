@@ -432,11 +432,6 @@ body.layout-drawer .popup-container {
 	text-transform: uppercase;
 }
 
-.course-badge-recitation {
-	background: var(--accent-soft);
-	color: var(--nyu-purple);
-}
-
 .course-badge-online {
 	background: rgba(3, 105, 161, 0.1);
 	color: #0369a1;

@@ -1,15 +1,15 @@
 // Planner selection and bucket mutations (create, recolor, rename, delete).
 
-import { state, dom } from "./context.js";
 import {
-	getBuckets,
-	createBucket,
-	updateBucket,
-	deleteBucket,
-	addCourseToPlannerSelection,
-	removeCourseFromPlannerSelection,
+  addCourseToPlannerSelection,
+  createBucket,
+  deleteBucket,
+  getBuckets,
+  removeCourseFromPlannerSelection,
+  updateBucket,
 } from "../course-storage.js";
-import { showToast, showModal } from "./ui-feedback.js";
+import { dom, state } from "./context.js";
+import { showModal, showToast } from "./ui-feedback.js";
 
 export async function handlePlannerAdd(courseId) {
 	if (!courseId || state.plannerSelectionSet.has(courseId)) return;
@@ -89,11 +89,6 @@ export async function handleBucketRecolor(bucket) {
 	const content = document.createElement("div");
 	content.className = "color-picker";
 
-	const hint = document.createElement("p");
-	hint.className = "color-picker-hint";
-	hint.textContent = "// click a swatch to apply";
-	content.appendChild(hint);
-
 	const grid = document.createElement("div");
 	grid.className = "color-grid";
 	content.appendChild(grid);
@@ -139,9 +134,7 @@ export async function handleBucketRecolor(bucket) {
 		grid.appendChild(option);
 	});
 
-	await showModal("// bucket color", content, [
-		{ label: "cancel", value: null },
-	]);
+	await showModal("// bucket color", content);
 }
 
 export function cancelInlineRename() {

@@ -595,6 +595,123 @@ function parseAlbertCart(cartTable, parsers) {
 	};
 }
 
+// ============ Enrolled Courses (#isSSS_ShCtSchTable) ============
+
+function findEnrolledTable() {
+	return document.getElementById("isSSS_ShCtSchTable");
+}
+
+/**
+ * Parse the course cell of an enrolled row, e.g.
+ * "Operating Systems CSCI-UA 202 002 (4)" or "Algebra MATH-UA 343 008" (recitation, no units).
+ */
+function parseEnrolledCourseCell(cell) {
+	const p =
+		cell?.querySelector(".isSSS_CourseTitle p") || cell?.querySelector("p");
+	if (!p) return null;
+
+	const text = normalizeText(p.textContent);
+	const withUnits =
+		/^(.*?)\s+([A-Z0-9&-]+-[A-Z0-9&-]+\s+\d+[A-Z]?)\s+([A-Z0-9]+)\s*\(([\d.]+)\)$/i;
+	const withoutUnits =
+		/^(.*?)\s+([A-Z0-9&-]+-[A-Z0-9&-]+\s+\d+[A-Z]?)\s+([A-Z0-9]+)$/i;
+
+	const match = text.match(withUnits) || text.match(withoutUnits);
+	if (!match) {
+		debugLog(`Could not parse enrolled course cell: "${text}"`);
+		return null;
+	}
+
+	const hasUnits = match[4] !== undefined;
+	return {
+		crseId: p.getAttribute("data-crseid") || null,
+		title: normalizeText(match[1]),
+		courseCode: normalizeText(match[2]).toUpperCase(),
+		section: p.getAttribute("data-classsection") || match[3],
+		credits: hasUnits ? Number.parseFloat(match[4]) || 0 : 0,
+	};
+}
+
+function parseEnrolledComponent(row, section, type, parsers) {
+	const days = parsers.parseDays(getCellText(row, "Day", 4));
+	const timeRange = parsers.parseTimeRange(getCellText(row, "Time", 3));
+	return {
+		type,
+		section,
+		days,
+		timeRange,
+		room: normalizeLocation(getCellText(row, "Location", 2)) || "TBA",
+		instructor: getCellText(row, "Instructor", 1) || "TBA",
+		isTBA: !timeRange,
+		status: "Enrolled",
+	};
+}
+
+/**
+ * Parse the "Enrolled Courses" schedule table. Rows sharing a data-crseid belong
+ * to the same course: the first is the lecture, the rest are recitations/labs.
+ */
+function parseEnrolledCourses(enrolledTable, parsers) {
+	const termInfo = getPageTermInfo(enrolledTable);
+	const rows = enrolledTable.querySelectorAll("tr.accordion-row");
+	debugLog("Found", rows.length, "enrolled course rows");
+
+	const courses = [];
+	let currentCourse = null;
+
+	for (const row of rows) {
+		const courseCell = row.querySelector('td[headers^="tbl_Course"]');
+		const info = courseCell ? parseEnrolledCourseCell(courseCell) : null;
+		if (!info) continue;
+
+		const sameCourse =
+			currentCourse &&
+			(info.crseId
+				? info.crseId === currentCourse.crseId
+				: info.courseCode === currentCourse.courseCode);
+
+		if (sameCourse) {
+			currentCourse.components.push(
+				parseEnrolledComponent(row, info.section, "Recitation", parsers),
+			);
+			debugLog(
+				`Added enrolled recitation ${info.section} to ${currentCourse.courseCode}`,
+			);
+			continue;
+		}
+
+		if (currentCourse) courses.push(currentCourse);
+
+		const id = `${info.courseCode}-${info.section}`.replace(/\s+/g, "-");
+		currentCourse = {
+			id,
+			crseId: info.crseId,
+			courseCode: info.courseCode,
+			section: info.section,
+			title: info.title,
+			credits: info.credits,
+			status: "Enrolled",
+			components: [
+				parseEnrolledComponent(row, info.section, "Lecture", parsers),
+			],
+			bucket: null,
+			addedAt: Date.now(),
+			...(termInfo ? { term: termInfo } : {}),
+		};
+		debugLog(
+			`Parsed enrolled course: ${info.courseCode}-${info.section} (${info.credits} credits)`,
+		);
+	}
+
+	if (currentCourse) courses.push(currentCourse);
+
+	// crseId is only an internal grouping aid; strip it from the returned shape.
+	return {
+		courses: courses.map(({ crseId, ...course }) => course),
+		term: termInfo,
+	};
+}
+
 // ============ Message Listener ============
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -604,34 +721,46 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
 	const isLikelyCartUrl = /NYU_SSENRL_CART/i.test(window.location.href);
 	const cartTable = findSummaryCartTable() || findCartTable();
+	const enrolledTable = findEnrolledTable();
 
-	// Not this frame's job — let the frame that actually has the cart respond.
-	if (!cartTable && !isLikelyCartUrl) {
+	// Not this frame's job — let the frame that actually has the cart/schedule respond.
+	if (!cartTable && !enrolledTable && !isLikelyCartUrl) {
 		debugLog("Skipping parse request in non-cart frame", window.location.href);
 		return false;
 	}
 
 	// This frame will respond; loading the shared parser is async, so keep the
 	// message channel open by returning true below.
-	handleParseCart(cartTable, sendResponse);
+	handleParseCart(cartTable, enrolledTable, sendResponse);
 	return true;
 });
 
-async function handleParseCart(cartTable, sendResponse) {
+async function handleParseCart(cartTable, enrolledTable, sendResponse) {
 	try {
-		if (!cartTable) {
-			debugLog("No shopping cart found in this frame yet; logging tables");
+		if (!cartTable && !enrolledTable) {
+			debugLog("No cart or enrolled table found in this frame yet; logging tables");
 			logAvailableTables();
 			sendResponse({
 				courses: [],
-				error: "Shopping cart table not found on this page.",
+				error: "Shopping cart or enrolled courses table not found on this page.",
 			});
 			return;
 		}
 
 		debugLog("Parse request received in frame", window.location.href);
 		const parsers = await loadParsers();
-		const result = parseAlbertCart(cartTable, parsers);
+
+		const cartResult = cartTable
+			? parseAlbertCart(cartTable, parsers)
+			: { courses: [], term: null };
+		const enrolledResult = enrolledTable
+			? parseEnrolledCourses(enrolledTable, parsers)
+			: { courses: [], term: null };
+
+		const result = {
+			courses: [...cartResult.courses, ...enrolledResult.courses],
+			term: cartResult.term || enrolledResult.term,
+		};
 		debugLog("Parsed", result.courses.length, "courses", result.courses);
 		sendResponse(result);
 	} catch (error) {
