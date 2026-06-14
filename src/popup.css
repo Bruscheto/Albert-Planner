@@ -614,6 +614,18 @@ body.layout-drawer .popup-container {
 	transform: translateY(0);
 }
 
+.btn-accent {
+	background: transparent;
+	color: var(--nyu-purple);
+	border-color: rgba(87, 6, 140, 0.45);
+}
+
+.btn-accent:hover {
+	background: var(--accent-soft);
+	border-color: var(--nyu-purple);
+	color: var(--nyu-purple-hover);
+}
+
 .btn-danger {
 	color: #b91c1c;
 	border-color: rgba(239, 68, 68, 0.22);
