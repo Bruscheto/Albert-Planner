@@ -44,10 +44,6 @@
 	},
 	"commands": {
 		"open-planner": {
-			"suggested_key": {
-				"default": "Alt+Shift+P",
-				"mac": "Alt+Shift+P"
-			},
 			"description": "Open the weekly schedule planner"
 		}
 	},
