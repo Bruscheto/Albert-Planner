@@ -311,7 +311,11 @@ chrome.contextMenus.onClicked.addListener(async (info) => {
 			break;
 
 		case "clear-courses":
-			await chrome.storage.local.set({ courses: [], plannerSelection: [] });
+			await chrome.storage.local.set({
+				courses: [],
+				plannerSelection: [],
+				activeTerm: null,
+			});
 			await chrome.action.setBadgeText({ text: "" });
 			console.log("[Albert Enhancer] All courses cleared");
 			break;

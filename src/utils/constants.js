@@ -1,14 +1,5 @@
 // Constants and configuration for Albert Course Planner
 
-// ============================================
-// SEMESTER CONFIG - UPDATE THIS EACH SEMESTER
-// ============================================
-// Find the term code in Albert's page source or URL
-// Known: 1264 = Spring 2026
-export const CURRENT_TERM = "1268"; // <-- UPDATE THIS EACH SEMESTER
-export const CURRENT_TERM_NAME = "Fall 2026"; // <-- Human-readable name
-// ============================================
-
 // Day abbreviation mapping - Albert uses 2-letter codes: Mo, Tu, We, Th, Fr, Sa, Su
 export const DAY_MAP = {
 	Mo: "Mon",
@@ -54,7 +45,3 @@ export const CALENDAR_CONFIG = {
 	END_HOUR: 22,
 	INTERVAL_MINUTES: 30,
 };
-
-// Add new term codes here as you discover them:
-// 1264 = Spring 2026
-// 1268 = Fall 2026

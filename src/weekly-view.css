@@ -1,9 +1,8 @@
-/* Weekly view styles for Albert Course Planner — Modern Redesign */
-@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Space+Grotesk:wght@400;500;600;700&display=swap");
+/* Weekly view styles for Albert Course Planner */
 
 :root {
-	--font-mono: "JetBrains Mono", "SF Mono", "Menlo", ui-monospace, monospace;
-	--font-display: "Space Grotesk", "Helvetica Neue", system-ui, sans-serif;
+	--font-mono: "SF Mono", "Cascadia Code", "Menlo", ui-monospace, monospace;
+	--font-display: "Avenir Next", "SF Pro Display", "Helvetica Neue", system-ui, sans-serif;
 
 	--purple-50: #f5f0f9;
 	--purple-100: #ede3f5;
@@ -17,19 +16,23 @@
 	--nyu-purple: #57068c;
 	--nyu-purple-hover: #450470;
 
-	--bg-color: #f8f7fc;
-	--card-bg: rgba(255, 255, 255, 0.82);
+	--bg-color: #eef0f3;
+	--card-bg: rgba(255, 255, 255, 0.86);
 	--card-bg-solid: #ffffff;
-	--text-primary: #1e1b2e;
-	--text-secondary: #6b6885;
-	--border-color: rgba(87, 6, 140, 0.08);
-	--border-strong: rgba(87, 6, 140, 0.14);
+	--text-primary: #17161d;
+	--text-secondary: #666777;
+	--text-muted: #8c8d9a;
+	--border-color: rgba(26, 24, 37, 0.1);
+	--border-strong: rgba(87, 6, 140, 0.18);
+	--accent-soft: rgba(87, 6, 140, 0.07);
+	--accent-softer: rgba(87, 6, 140, 0.035);
+	--surface-muted: rgba(25, 24, 33, 0.035);
 
-	--shadow-sm: 0 1px 3px rgba(87, 6, 140, 0.04), 0 1px 2px rgba(0, 0, 0, 0.03);
-	--shadow-md: 0 4px 16px rgba(87, 6, 140, 0.06), 0 2px 4px rgba(0, 0, 0, 0.03);
+	--shadow-sm: 0 1px 2px rgba(34, 30, 48, 0.05);
+	--shadow-md: 0 12px 28px rgba(33, 27, 48, 0.08), 0 1px 2px rgba(33, 27, 48, 0.04);
 	--shadow-lg:
-		0 12px 40px rgba(87, 6, 140, 0.1), 0 4px 12px rgba(0, 0, 0, 0.04);
-	--shadow-glow: 0 0 0 1px rgba(87, 6, 140, 0.06);
+		0 22px 56px rgba(33, 27, 48, 0.12), 0 5px 14px rgba(33, 27, 48, 0.06);
+	--shadow-glow: 0 0 0 1px rgba(87, 6, 140, 0.08);
 
 	--radius-sm: 8px;
 	--radius-md: 12px;
@@ -44,8 +47,8 @@
 	--sidebar-width: 320px;
 	--time-column-width: 56px;
 
-	--glass-bg: rgba(255, 255, 255, 0.65);
-	--glass-border: rgba(255, 255, 255, 0.4);
+	--glass-bg: rgba(255, 255, 255, 0.72);
+	--glass-border: rgba(255, 255, 255, 0.62);
 }
 
 * {
@@ -80,19 +83,9 @@ body {
 		"calt" on;
 	color: var(--text-primary);
 	background: var(--bg-color);
-	background-image:
-		radial-gradient(
-			ellipse 80% 60% at 50% 0%,
-			rgba(87, 6, 140, 0.05) 0%,
-			transparent 60%
-		),
-		radial-gradient(
-			ellipse 60% 40% at 100% 100%,
-			rgba(87, 6, 140, 0.03) 0%,
-			transparent 50%
-		);
-	min-height: 100vh;
+	min-height: 100dvh;
 	-webkit-font-smoothing: antialiased;
+	text-rendering: geometricPrecision;
 }
 
 h1,
@@ -107,7 +100,7 @@ h4 {
 .weekly-container {
 	display: flex;
 	flex-direction: column;
-	height: 100vh;
+	height: 100dvh;
 }
 
 /* ── Header ── */
@@ -116,11 +109,14 @@ h4 {
 	flex-direction: column;
 	gap: 6px;
 	padding: 14px 24px 10px;
-	background: var(--card-bg-solid);
+	background:
+		linear-gradient(90deg, rgba(87, 6, 140, 0.06), transparent 46%),
+		rgba(255, 255, 255, 0.94);
 	color: var(--text-primary);
 	z-index: 20;
 	border-bottom: 1px solid var(--border-color);
 	position: relative;
+	box-shadow: 0 1px 0 rgba(255, 255, 255, 0.9) inset;
 }
 
 .weekly-header::after {
@@ -133,8 +129,8 @@ h4 {
 	background: linear-gradient(
 		90deg,
 		transparent 0,
-		rgba(87, 6, 140, 0.35) 24px,
-		rgba(87, 6, 140, 0.35) calc(100% - 24px),
+		rgba(87, 6, 140, 0.44) 24px,
+		rgba(87, 6, 140, 0.16) calc(100% - 24px),
 		transparent 100%
 	);
 	pointer-events: none;
@@ -210,7 +206,7 @@ h4 {
 	padding: 3px 10px 3px 8px;
 	border-radius: 999px;
 	border: 1px solid var(--border-color);
-	background: rgba(87, 6, 140, 0.03);
+	background: var(--accent-softer);
 	font-family: var(--font-mono);
 	line-height: 1;
 }
@@ -270,7 +266,7 @@ h4 {
 	padding: 4px 10px;
 	border-radius: 999px;
 	border: 1px solid var(--border-color);
-	background: rgba(87, 6, 140, 0.03);
+	background: rgba(255, 255, 255, 0.72);
 	color: var(--text-secondary);
 	font-family: var(--font-mono);
 	font-size: 10px;
@@ -286,7 +282,7 @@ h4 {
 .header-action-btn:hover {
 	color: var(--nyu-purple);
 	border-color: rgba(87, 6, 140, 0.35);
-	background: rgba(87, 6, 140, 0.08);
+	background: var(--accent-soft);
 }
 
 .header-action-btn:active {
@@ -322,7 +318,7 @@ h4 {
 	letter-spacing: 0.08em;
 	text-transform: uppercase;
 	color: var(--nyu-purple);
-	background: rgba(87, 6, 140, 0.08);
+	background: var(--accent-soft);
 	border: 1px solid rgba(87, 6, 140, 0.18);
 	padding: 2px 7px;
 	border-radius: 4px;
@@ -345,7 +341,10 @@ h4 {
 	font-size: 13px;
 	font-weight: 500;
 	cursor: pointer;
-	transition: all 0.2s;
+	transition:
+		background 0.2s ease,
+		border-color 0.2s ease,
+		color 0.2s ease;
 	backdrop-filter: blur(4px);
 }
 
@@ -389,7 +388,7 @@ h4 {
 }
 
 .sidebar-toggle-handle:hover {
-	background: white;
+	background: var(--card-bg-solid);
 	color: var(--purple-800);
 	border-color: rgba(87, 6, 140, 0.35);
 	box-shadow:
@@ -428,7 +427,7 @@ h4 {
 	left: 0;
 	bottom: 0;
 	z-index: 15;
-	box-shadow: 8px 0 32px rgba(87, 6, 140, 0.04);
+	box-shadow: 8px 0 32px rgba(33, 27, 48, 0.06);
 	transform: translateX(0);
 	transition:
 		transform 0.28s cubic-bezier(0.4, 0, 0.2, 1),
@@ -512,7 +511,7 @@ body.weekly-sidebar-collapsed .sidebar {
 }
 
 .sidebar-section[data-section] > .sidebar-section-header:hover {
-	background: rgba(87, 6, 140, 0.04);
+	background: var(--accent-softer);
 }
 
 .sidebar-section[data-section] > .sidebar-section-header:hover h3 {
@@ -571,7 +570,7 @@ body.weekly-sidebar-collapsed .sidebar {
 
 .btn-inline {
 	border: 1px dashed rgba(87, 6, 140, 0.3);
-	background: rgba(87, 6, 140, 0.06);
+	background: var(--accent-soft);
 	color: var(--nyu-purple);
 	font-size: 11px;
 	font-weight: 600;
@@ -580,7 +579,11 @@ body.weekly-sidebar-collapsed .sidebar {
 	padding: 4px 10px;
 	border-radius: 999px;
 	cursor: pointer;
-	transition: all 0.2s;
+	transition:
+		background 0.2s ease,
+		border-color 0.2s ease,
+		box-shadow 0.2s ease,
+		color 0.2s ease;
 }
 
 .btn-inline:hover {
@@ -622,7 +625,7 @@ body.weekly-sidebar-collapsed .sidebar {
 	letter-spacing: 0.01em;
 	border: 1px dashed var(--border-color);
 	border-radius: var(--radius-sm);
-	background: rgba(17, 24, 39, 0.015);
+	background: rgba(255, 255, 255, 0.5);
 	opacity: 0.85;
 }
 
@@ -631,6 +634,8 @@ body.weekly-sidebar-collapsed .sidebar {
 	align-items: center;
 	justify-content: space-between;
 	gap: 8px;
+	box-sizing: border-box;
+	width: 100%;
 	min-width: 0;
 	max-width: 100%;
 	padding: 8px 10px 8px 12px;
@@ -642,13 +647,13 @@ body.weekly-sidebar-collapsed .sidebar {
 	transition:
 		border-color 0.15s ease,
 		background 0.15s ease,
-		transform 0.15s ease;
+		box-shadow 0.15s ease;
 }
 
 .planner-course-chip:hover {
 	border-color: var(--border-strong);
-	background: rgba(87, 6, 140, 0.02);
-	transform: translateX(1px);
+	background: var(--accent-softer);
+	box-shadow: inset 0 0 0 1px rgba(87, 6, 140, 0.08);
 }
 
 .planner-course-details {
@@ -734,8 +739,8 @@ body.weekly-sidebar-collapsed .sidebar {
 
 .bucket-wrapper:hover {
 	border-color: rgba(87, 6, 140, 0.22);
-	box-shadow: 0 2px 8px rgba(87, 6, 140, 0.06);
-	background: rgba(255, 255, 255, 0.95);
+	box-shadow: var(--shadow-sm);
+	background: rgba(255, 255, 255, 0.96);
 }
 
 .bucket-wrapper.is-drop-target {
@@ -762,14 +767,17 @@ body.weekly-sidebar-collapsed .sidebar {
 	background: transparent;
 	border-radius: var(--radius-sm);
 	cursor: pointer;
-	transition: all 0.15s;
 	border: none;
+	transition:
+		background 0.15s ease,
+		border-radius 0.15s ease,
+		color 0.15s ease;
 }
 
 .bucket-item:not(.is-collapsed) {
 	border-bottom-left-radius: 0;
 	border-bottom-right-radius: 0;
-	background: rgba(87, 6, 140, 0.02);
+	background: var(--accent-softer);
 }
 
 .bucket-item.is-delete-mode {
@@ -780,7 +788,7 @@ body.weekly-sidebar-collapsed .sidebar {
 }
 
 .bucket-item:hover {
-	background: rgba(87, 6, 140, 0.04);
+	background: var(--accent-softer);
 }
 
 .bucket-item.is-collapsed:hover {
@@ -832,7 +840,7 @@ body.weekly-sidebar-collapsed .sidebar {
 .bucket-dot {
 	width: 10px;
 	height: 10px;
-	border-radius: 50%;
+	border-radius: 3px;
 	flex-shrink: 0;
 	box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.8);
 }
@@ -975,7 +983,7 @@ body.weekly-sidebar-collapsed .sidebar {
 }
 
 .bucket-course-list {
-	background: rgba(248, 247, 252, 0.6);
+	background: rgba(246, 247, 249, 0.78);
 	border-top: 1px solid var(--border-color);
 	border-bottom-left-radius: var(--radius-md);
 	border-bottom-right-radius: var(--radius-md);
@@ -1051,7 +1059,7 @@ body.weekly-sidebar-collapsed .sidebar {
 }
 
 .bucket-course-entry:hover {
-	background: rgba(87, 6, 140, 0.045);
+	background: var(--accent-softer);
 	box-shadow: 0 2px 8px rgba(87, 6, 140, 0.06);
 }
 
@@ -1186,7 +1194,7 @@ body.weekly-sidebar-collapsed .sidebar {
 	text-align: center;
 	border: 1px dashed var(--border-color);
 	border-radius: var(--radius-sm);
-	background: rgba(17, 24, 39, 0.015);
+	background: rgba(255, 255, 255, 0.5);
 	opacity: 0.8;
 }
 
@@ -1294,7 +1302,7 @@ body.weekly-sidebar-collapsed .sidebar {
 	top: 10px;
 	bottom: 10px;
 	width: 2px;
-	background: rgba(87, 6, 140, 0.14);
+	background: rgba(87, 6, 140, 0.18);
 	border-radius: 2px;
 	transition: background 0.2s ease;
 }
@@ -1346,7 +1354,7 @@ body.weekly-sidebar-collapsed .sidebar {
 	min-width: 0;
 	width: auto;
 	margin-left: var(--sidebar-width);
-	padding: 20px;
+	padding: 20px 22px 22px;
 	overflow: auto;
 	position: relative;
 	-webkit-overflow-scrolling: touch;
@@ -1374,19 +1382,18 @@ body.weekly-sidebar-collapsed .calendar-container {
 	min-height: 0;
 	overflow-y: hidden;
 	position: relative;
-	background: transparent;
-	border: none;
-	border-top: 1px solid var(--border-color);
-	border-bottom: 1px solid var(--border-color);
-	border-radius: 0;
-	box-shadow: none;
+	background: rgba(255, 255, 255, 0.68);
+	border: 1px solid var(--border-color);
+	border-radius: 14px;
+	box-shadow:
+		0 1px 0 rgba(255, 255, 255, 0.9) inset,
+		var(--shadow-sm);
 }
 
 .calendar-grid.drag-over {
-	border-top-color: rgba(87, 6, 140, 0.35);
-	border-bottom-color: rgba(87, 6, 140, 0.35);
-	box-shadow: none;
-	background: rgba(87, 6, 140, 0.012);
+	border-color: rgba(87, 6, 140, 0.35);
+	box-shadow: 0 0 0 3px rgba(87, 6, 140, 0.08), var(--shadow-sm);
+	background: rgba(255, 255, 255, 0.8);
 }
 
 .calendar-empty-state {
@@ -1437,13 +1444,13 @@ body.weekly-sidebar-collapsed .calendar-container {
 .time-column {
 	width: var(--time-column-width);
 	border-right: 1px solid rgba(87, 6, 140, 0.06);
-	background: transparent;
+	background: rgba(255, 255, 255, 0.32);
 }
 
 .time-header-spacer {
 	height: 44px;
 	border-bottom: 1px solid var(--border-color);
-	background: transparent;
+	background: rgba(255, 255, 255, 0.52);
 }
 
 .time-label {
@@ -1481,7 +1488,7 @@ body.weekly-sidebar-collapsed .calendar-container {
 	flex: 1;
 	min-width: 120px;
 	border-right: 1px solid rgba(87, 6, 140, 0.04);
-	background: transparent;
+	background: rgba(255, 255, 255, 0.18);
 }
 
 .day-column:last-child {
@@ -1500,7 +1507,7 @@ body.weekly-sidebar-collapsed .calendar-container {
 	text-transform: uppercase;
 	letter-spacing: 0.16em;
 	color: var(--nyu-purple);
-	background: rgba(87, 6, 140, 0.04);
+	background: rgba(255, 255, 255, 0.64);
 	border-bottom: 1px solid rgba(87, 6, 140, 0.1);
 	position: sticky;
 	top: 0;
@@ -1615,6 +1622,7 @@ body.weekly-sidebar-collapsed .calendar-container {
 	overflow: hidden;
 	cursor: grab;
 	transition:
+		transform 0.18s cubic-bezier(0.22, 1, 0.36, 1),
 		filter 0.16s ease,
 		box-shadow 0.16s ease,
 		opacity 0.12s ease;
@@ -1678,6 +1686,7 @@ body.weekly-sidebar-collapsed .calendar-container {
 }
 
 .course-block:hover {
+	transform: translateY(-1px) scale(1.01);
 	box-shadow:
 		0 8px 18px rgba(17, 24, 39, 0.16),
 		0 0 0 1px rgba(255, 255, 255, 0.18) inset;
@@ -1936,7 +1945,7 @@ body.weekly-sidebar-collapsed .calendar-container {
 .course-metadata-backdrop {
 	position: fixed;
 	inset: 0;
-	background: rgba(30, 27, 46, 0.4);
+	background: rgba(23, 22, 29, 0.42);
 	backdrop-filter: blur(4px);
 	opacity: 0;
 	pointer-events: none;
@@ -2094,7 +2103,9 @@ body.metadata-drawer-open .course-metadata-drawer {
 	min-width: 280px;
 	pointer-events: auto;
 	animation: toastSlideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-	transition: all 0.3s ease;
+	transition:
+		opacity 0.3s ease,
+		transform 0.3s ease;
 }
 
 .toast.toast-error {
@@ -2143,7 +2154,7 @@ body.metadata-drawer-open .course-metadata-drawer {
 .modal-overlay {
 	position: fixed;
 	inset: 0;
-	background: rgba(30, 27, 46, 0.45);
+	background: rgba(23, 22, 29, 0.45);
 	backdrop-filter: blur(4px);
 	display: flex;
 	align-items: center;
@@ -2151,7 +2162,9 @@ body.metadata-drawer-open .course-metadata-drawer {
 	z-index: 50;
 	opacity: 0;
 	visibility: hidden;
-	transition: all 0.2s ease;
+	transition:
+		opacity 0.2s ease,
+		visibility 0.2s ease;
 }
 
 .modal-overlay.is-open {

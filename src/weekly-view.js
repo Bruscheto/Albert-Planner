@@ -59,6 +59,7 @@ import { setupHoverHighlight } from "./weekly-view/hover-highlight.js";
 
 const SIDEBAR_STORAGE_KEY = "weeklySidebarOpen";
 const SECTION_COLLAPSE_KEY = "weeklySectionCollapseState";
+const ACTIVE_TERM_KEY = "activeTerm";
 
 // ============ Section Collapse ============
 
@@ -151,17 +152,41 @@ function toggleSidebar() {
 
 // ============ Schedule load ============
 
+function getTermBadgeLabel(courses, activeTerm = null) {
+	const termNames = [
+		...new Set(
+			courses
+				.map((course) => course?.term?.name)
+				.filter((name) => typeof name === "string" && name.trim()),
+		),
+	];
+
+	if (termNames.length === 1) return termNames[0];
+	if (termNames.length > 1) return `${termNames.length} terms`;
+	if (typeof activeTerm?.name === "string" && activeTerm.name.trim()) {
+		return activeTerm.name;
+	}
+	return "schedule";
+}
+
 async function loadSchedule() {
 	try {
 		clearCourseBlocks();
-		const [courses, buckets, plannerSelection, profRatings] =
+		const [courses, buckets, plannerSelection, profRatings, termResult] =
 			await Promise.all([
 				getCourses(),
 				getBuckets(),
 				getPlannerSelection(),
 				getProfessorRatings(),
+				chrome.storage.local.get(ACTIVE_TERM_KEY),
 			]);
 		state.cachedProfRatings = profRatings;
+		if (dom.weeklyTermBadge) {
+			dom.weeklyTermBadge.textContent = getTermBadgeLabel(
+				courses,
+				termResult[ACTIVE_TERM_KEY],
+			);
+		}
 
 		state.coursesById = new Map(courses.map((course) => [course.id, course]));
 		state.currentBuckets = buckets;
@@ -390,7 +415,11 @@ function setupEventListeners() {
 	chrome.storage.onChanged.addListener((changes, namespace) => {
 		if (
 			namespace === "local" &&
-			(changes.courses || changes.buckets || changes.plannerSelection || changes.professorRatings)
+			(changes.courses ||
+				changes.buckets ||
+				changes.plannerSelection ||
+				changes.professorRatings ||
+				changes[ACTIVE_TERM_KEY])
 		) {
 			clearCourseBlocks();
 			loadSchedule();

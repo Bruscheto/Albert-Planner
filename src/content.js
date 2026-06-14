@@ -1,5 +1,5 @@
 // Content script for Albert pages
-// Parses shopping cart on-demand when requested by popup
+// Parses Albert cart data on-demand when requested by popup
 // Note: Content scripts can't use *static* ES module imports, but they CAN use
 // dynamic import() of web_accessible_resources — so shared parsing logic is loaded
 // from src/utils/time-parser.js at runtime instead of being duplicated here.
@@ -28,6 +28,11 @@ function loadParsers() {
 
 // ============ Selectors for new Albert page structure ============
 const SELECTORS = {
+	SUMMARY_TERM_WRAPPER: ".isSSS_ShCtTermWrp",
+	SUMMARY_CART_TABLE:
+		"table.isSSS_ShCtTable.accordion-table",
+	SUMMARY_PRIMARY_ROW: "tr.isSSS_ShCtPrim",
+	SUMMARY_DETAIL_ROW: "tr.isSSS_ShCtNonPrim",
 	// The main cart table with title containing "Shopping Cart"
 	CART_TABLE: 'table.ps_grid-flex[title*="Shopping Cart"]',
 	// Each row in the cart
@@ -99,6 +104,25 @@ function findCartTable() {
 	return table || null;
 }
 
+function findSummaryCartTable() {
+	const selectedWrapper = document.querySelector(
+		`${SELECTORS.SUMMARY_TERM_WRAPPER}.selected`,
+	);
+	if (selectedWrapper) {
+		return selectedWrapper.querySelector(SELECTORS.SUMMARY_CART_TABLE) ||
+			selectedWrapper;
+	}
+
+	const tables = Array.from(document.querySelectorAll(SELECTORS.SUMMARY_CART_TABLE));
+	for (const table of tables) {
+		if (table.querySelector(SELECTORS.SUMMARY_PRIMARY_ROW)) {
+			return table;
+		}
+	}
+
+	return null;
+}
+
 // ============ Time Parsing (delegates to shared utils/time-parser.js) ============
 
 /**
@@ -125,6 +149,162 @@ function parseDaysAndTime(daysTimesStr, parsers) {
 	const timeRange = parsers.parseTimeRange(match[2]);
 
 	return { days, timeRange, isTBA: !timeRange };
+}
+
+function normalizeText(value) {
+	return (value || "").replace(/\u00a0/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function normalizeLocation(value) {
+	return normalizeText(value)
+		.replace(/([^\s])Loc:/g, "$1 Loc:")
+		.replace(/:\s*/g, ": ");
+}
+
+function parseTermInfo(text) {
+	const match = normalizeText(text).match(
+		/\b(Spring|Summer|Fall|Winter)\s+(\d{4})\b/i,
+	);
+	if (!match) return null;
+
+	const semester =
+		match[1].charAt(0).toUpperCase() + match[1].slice(1).toLowerCase();
+	const year = Number.parseInt(match[2], 10);
+	return {
+		name: `${semester} ${year}`,
+		semester,
+		year,
+	};
+}
+
+function extractTermCode(container) {
+	const source = `${container?.id || ""} ${container?.className || ""}`;
+	const match = source.match(/(?:^|[^A-Za-z0-9])(?:ShCtTm)?(\d{4})[A-Z]*/);
+	return match?.[1] || null;
+}
+
+function getSummaryTermInfo(summaryTable) {
+	const container =
+		summaryTable.matches?.(SELECTORS.SUMMARY_TERM_WRAPPER)
+			? summaryTable
+			: summaryTable.closest(SELECTORS.SUMMARY_TERM_WRAPPER) ||
+				summaryTable.parentElement;
+	const headingText =
+		container?.querySelector("h2")?.textContent ||
+		summaryTable.previousElementSibling?.textContent ||
+		"";
+	const term = parseTermInfo(headingText);
+	if (!term) return null;
+
+	const termCode = extractTermCode(container);
+	return termCode ? { ...term, termCode } : term;
+}
+
+function getPageTermInfo(anchorElement) {
+	let element = anchorElement;
+	while (element) {
+		const heading = element.querySelector?.("h1,h2,h3");
+		const term = parseTermInfo(heading?.textContent);
+		if (term) return term;
+		element = element.parentElement;
+	}
+	return parseTermInfo(document.body?.innerText || "");
+}
+
+function getCellText(row, label, fallbackIndex) {
+	const normalizedLabel = label.toLowerCase().replace(/[^a-z]/g, "");
+	const cells = Array.from(row.querySelectorAll("td, th"));
+	const matchingCell = cells.find((cell) => {
+		const cellLabel = (cell.dataset.label || "")
+			.toLowerCase()
+			.replace(/[^a-z]/g, "");
+		return cellLabel.includes(normalizedLabel);
+	});
+	return normalizeText(
+		(matchingCell || cells[fallbackIndex])?.textContent || "",
+	);
+}
+
+function getSummaryCourseCell(row) {
+	return (
+		Array.from(row.querySelectorAll("td")).find((cell) =>
+			(cell.dataset.label || "")
+				.toLowerCase()
+				.replace(/[^a-z]/g, "")
+				.includes("course"),
+		) || row.querySelector("td")
+	);
+}
+
+function parseSummaryCourseInfo(row) {
+	const cell = getSummaryCourseCell(row);
+	if (!cell) return null;
+
+	const cellText = normalizeText(cell.textContent);
+	const titleFromAttribute = normalizeText(cell.getAttribute("title"));
+	const pattern =
+		/^(.*?)\s+([A-Z0-9&-]+-[A-Z0-9&-]+\s+\d+[A-Z]?)\s+([A-Z0-9]+)\s*\(([\d.]+)\)$/i;
+	const match = cellText.match(pattern);
+
+	if (!match) {
+		debugLog(`Could not parse summary course cell: "${cellText}"`);
+		return null;
+	}
+
+	return {
+		title: titleFromAttribute || normalizeText(match[1]),
+		courseCode: normalizeText(match[2]).toUpperCase(),
+		section: match[3],
+		credits: Number.parseFloat(match[4]) || 0,
+	};
+}
+
+function parseSummarySchedule(row, parsers) {
+	const dayText = getCellText(row, "Day", 4);
+	const timeText = getCellText(row, "Time", 3);
+	const days = parsers.parseDays(dayText);
+	const timeRange = parsers.parseTimeRange(timeText);
+	return { days, timeRange, isTBA: !timeRange };
+}
+
+function parseSummaryComponent(row, section, parsers) {
+	const type = getCellText(row, "Course", 0) || "Lecture";
+	const { days, timeRange, isTBA } = parseSummarySchedule(row, parsers);
+
+	return {
+		type,
+		section,
+		days,
+		timeRange,
+		room: normalizeLocation(getCellText(row, "Location", 2)) || "TBA",
+		instructor: getCellText(row, "Instructor", 1) || "TBA",
+		isTBA,
+		status: "In Cart",
+	};
+}
+
+function createCourseFromSummaryRow(row, parsers, termInfo) {
+	const courseInfo = parseSummaryCourseInfo(row);
+	if (!courseInfo) return null;
+
+	const id = `${courseInfo.courseCode}-${courseInfo.section}`.replace(/\s+/g, "-");
+	const summaryComponent = parseSummaryComponent(row, courseInfo.section, parsers);
+
+	return {
+		course: {
+			id,
+			courseCode: courseInfo.courseCode,
+			section: courseInfo.section,
+			title: courseInfo.title,
+			credits: courseInfo.credits,
+			status: "In Cart",
+			components: [],
+			bucket: null,
+			addedAt: Date.now(),
+			...(termInfo ? { term: termInfo } : {}),
+		},
+		summaryComponent,
+	};
 }
 
 /**
@@ -254,6 +434,7 @@ function parseShoppingCart(existingTable, parsers) {
 	}
 
 	debugLog("Found cart table:", cartTable.getAttribute("title"));
+	const termInfo = getPageTermInfo(cartTable);
 
 	const rows = cartTable.querySelectorAll(SELECTORS.CART_ROW);
 	debugLog("Found", rows.length, "rows in cart");
@@ -318,6 +499,7 @@ function parseShoppingCart(existingTable, parsers) {
 				],
 				bucket: null,
 				addedAt: Date.now(),
+				...(termInfo ? { term: termInfo } : {}),
 			};
 
 			debugLog(
@@ -334,6 +516,85 @@ function parseShoppingCart(existingTable, parsers) {
 	return courses;
 }
 
+function parseSummaryCart(summarySource, parsers) {
+	const summaryTable = summarySource.matches?.(SELECTORS.SUMMARY_CART_TABLE)
+		? summarySource
+		: summarySource.querySelector?.(SELECTORS.SUMMARY_CART_TABLE);
+
+	if (!summaryTable) {
+		debugLog("Enrollment summary cart table not found yet");
+		return [];
+	}
+
+	debugLog("Found enrollment summary cart table");
+	const termInfo = getSummaryTermInfo(summaryTable);
+	const rows = summaryTable.querySelectorAll(
+		`${SELECTORS.SUMMARY_PRIMARY_ROW}, ${SELECTORS.SUMMARY_DETAIL_ROW}`,
+	);
+	debugLog("Found", rows.length, "summary cart rows");
+
+	const courses = [];
+	let currentCourse = null;
+	let currentSummaryComponent = null;
+
+	const pushCurrentCourse = () => {
+		if (!currentCourse) return;
+		if (currentCourse.components.length === 0 && currentSummaryComponent) {
+			currentCourse.components.push(currentSummaryComponent);
+		}
+		courses.push(currentCourse);
+	};
+
+	for (const row of rows) {
+		if (row.matches(SELECTORS.SUMMARY_PRIMARY_ROW)) {
+			pushCurrentCourse();
+
+			const parsed = createCourseFromSummaryRow(row, parsers, termInfo);
+			if (!parsed) {
+				currentCourse = null;
+				currentSummaryComponent = null;
+				continue;
+			}
+
+			currentCourse = parsed.course;
+			currentSummaryComponent = parsed.summaryComponent;
+			debugLog(
+				`Parsed summary course: ${currentCourse.courseCode}-${currentCourse.section} (${currentCourse.credits} credits)`,
+			);
+			continue;
+		}
+
+		if (!currentCourse || !row.matches(SELECTORS.SUMMARY_DETAIL_ROW)) {
+			continue;
+		}
+
+		const component = parseSummaryComponent(row, currentCourse.section, parsers);
+		currentCourse.components.push(component);
+		debugLog(`Added summary ${component.type} to ${currentCourse.courseCode}`);
+	}
+
+	pushCurrentCourse();
+	return courses;
+}
+
+function parseAlbertCart(cartTable, parsers) {
+	if (
+		cartTable?.matches(SELECTORS.SUMMARY_CART_TABLE) ||
+		cartTable?.matches(SELECTORS.SUMMARY_TERM_WRAPPER)
+	) {
+		return {
+			courses: parseSummaryCart(cartTable, parsers),
+			term: getSummaryTermInfo(cartTable),
+		};
+	}
+
+	const courses = parseShoppingCart(cartTable, parsers);
+	return {
+		courses,
+		term: courses[0]?.term || getPageTermInfo(cartTable),
+	};
+}
+
 // ============ Message Listener ============
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -342,7 +603,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 	}
 
 	const isLikelyCartUrl = /NYU_SSENRL_CART/i.test(window.location.href);
-	const cartTable = findCartTable();
+	const cartTable = findSummaryCartTable() || findCartTable();
 
 	// Not this frame's job — let the frame that actually has the cart respond.
 	if (!cartTable && !isLikelyCartUrl) {
@@ -370,9 +631,9 @@ async function handleParseCart(cartTable, sendResponse) {
 
 		debugLog("Parse request received in frame", window.location.href);
 		const parsers = await loadParsers();
-		const courses = parseShoppingCart(cartTable, parsers);
-		debugLog("Parsed", courses.length, "courses", courses);
-		sendResponse({ courses });
+		const result = parseAlbertCart(cartTable, parsers);
+		debugLog("Parsed", result.courses.length, "courses", result.courses);
+		sendResponse(result);
 	} catch (error) {
 		console.error("[Albert Enhancer] Parse cart failed:", error);
 		sendResponse({

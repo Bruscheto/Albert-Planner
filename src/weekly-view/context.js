@@ -43,6 +43,7 @@ export const dom = {
 	sidebarBuckets: document.getElementById("sidebar-buckets"),
 	statCourses: document.getElementById("stat-courses"),
 	statHours: document.getElementById("stat-hours"),
+	weeklyTermBadge: document.getElementById("weekly-term-badge"),
 	btnAddBucket: document.getElementById("btn-add-bucket"),
 	btnDeleteBucket: document.getElementById("btn-delete-bucket"),
 	btnSidebarToggle: document.getElementById("btn-sidebar-toggle"),

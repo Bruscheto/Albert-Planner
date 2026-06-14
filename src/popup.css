@@ -1,22 +1,27 @@
 /* Popup styles for Albert Course Planner */
-@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Space+Grotesk:wght@400;500;600;700&display=swap");
 
 :root {
 	--font-mono:
-		"JetBrains Mono", "SF Mono", "Menlo", ui-monospace, monospace;
+		"SF Mono", "Cascadia Code", "Menlo", ui-monospace, monospace;
 	--font-display:
-		"Space Grotesk", "Helvetica Neue", system-ui, sans-serif;
+		"Avenir Next", "SF Pro Display", "Helvetica Neue", system-ui, sans-serif;
 
 	--nyu-purple: #57068c;
 	--nyu-purple-hover: #450470;
-	--bg-color: #f3f4f6;
-	--card-bg: #ffffff;
-	--text-primary: #111827;
-	--text-secondary: #6b7280;
-	--border-color: #e5e7eb;
-	--shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-	--shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1),
-		0 2px 4px -1px rgba(0, 0, 0, 0.06);
+	--bg-color: #eef0f3;
+	--card-bg: rgba(255, 255, 255, 0.92);
+	--card-bg-solid: #ffffff;
+	--text-primary: #17161d;
+	--text-secondary: #666777;
+	--text-muted: #8c8d9a;
+	--border-color: rgba(26, 24, 37, 0.1);
+	--border-strong: rgba(87, 6, 140, 0.18);
+	--accent-soft: rgba(87, 6, 140, 0.07);
+	--accent-softer: rgba(87, 6, 140, 0.035);
+	--surface-muted: rgba(25, 24, 33, 0.035);
+	--shadow-sm: 0 1px 2px rgba(34, 30, 48, 0.05);
+	--shadow-md: 0 12px 28px rgba(33, 27, 48, 0.08),
+		0 1px 2px rgba(33, 27, 48, 0.04);
 	--radius-md: 8px;
 	--radius-lg: 12px;
 	--radius-full: 9999px;
@@ -39,6 +44,7 @@ body {
 	max-width: 100%;
 	min-height: 500px;
 	-webkit-font-smoothing: antialiased;
+	text-rendering: geometricPrecision;
 }
 
 h1,
@@ -51,7 +57,7 @@ h4 {
 
 body.layout-drawer {
 	width: 100%;
-	min-height: 100vh;
+	min-height: 100dvh;
 }
 
 .popup-container {
@@ -60,11 +66,15 @@ body.layout-drawer {
 	height: 100%;
 	position: relative;
 	overflow: hidden;
+	background:
+		linear-gradient(180deg, rgba(255, 255, 255, 0.78), rgba(248, 249, 251, 0.96)),
+		var(--bg-color);
+	box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.72);
 }
 
 body.layout-drawer .popup-container {
 	max-width: var(--drawer-max-width);
-	height: 100vh;
+	height: 100dvh;
 	margin: 0 auto;
 }
 
@@ -73,10 +83,13 @@ body.layout-drawer .popup-container {
 	display: flex;
 	flex-direction: column;
 	gap: 8px;
-	padding: 18px 20px 14px;
-	background: var(--card-bg);
+	padding: 18px 20px 13px;
+	background:
+		linear-gradient(90deg, rgba(87, 6, 140, 0.055), transparent 42%),
+		rgba(255, 255, 255, 0.94);
 	border-bottom: 1px solid var(--border-color);
 	position: relative;
+	box-shadow: 0 1px 0 rgba(255, 255, 255, 0.9) inset;
 }
 
 .popup-header::after {
@@ -89,8 +102,8 @@ body.layout-drawer .popup-container {
 	background: linear-gradient(
 		90deg,
 		transparent 0,
-		rgba(87, 6, 140, 0.35) 20px,
-		rgba(87, 6, 140, 0.35) calc(100% - 20px),
+		rgba(87, 6, 140, 0.42) 20px,
+		rgba(87, 6, 140, 0.16) calc(100% - 20px),
 		transparent 100%
 	);
 	pointer-events: none;
@@ -111,6 +124,7 @@ body.layout-drawer .popup-container {
 	line-height: 1;
 	letter-spacing: -0.01em;
 	font-feature-settings: "zero" 1, "ss01" 1, "cv11" 1;
+	padding: 2px 0;
 }
 
 .popup-path {
@@ -179,7 +193,7 @@ body.layout-drawer .popup-container {
 }
 
 .icon-btn:hover {
-	background: rgba(87, 6, 140, 0.08);
+	background: var(--accent-soft);
 	border-color: rgba(87, 6, 140, 0.18);
 	color: var(--nyu-purple);
 }
@@ -215,7 +229,7 @@ body.layout-drawer .popup-container {
 	letter-spacing: 0.08em;
 	text-transform: uppercase;
 	color: var(--nyu-purple);
-	background: rgba(87, 6, 140, 0.08);
+	background: var(--accent-soft);
 	border: 1px solid rgba(87, 6, 140, 0.18);
 	padding: 2px 7px;
 	border-radius: 4px;
@@ -235,6 +249,7 @@ body.layout-drawer .popup-container {
 	overflow-y: auto;
 	display: flex;
 	flex-direction: column;
+	background: linear-gradient(180deg, transparent, rgba(255, 255, 255, 0.3));
 }
 
 /* Sections — CLI-style headings */
@@ -254,7 +269,7 @@ body.layout-drawer .popup-container {
 	font-size: 11px;
 	font-weight: 600;
 	color: var(--text-secondary);
-	letter-spacing: 0.02em;
+	letter-spacing: 0.03em;
 	text-transform: none;
 	margin-bottom: 12px;
 	position: relative;
@@ -282,14 +297,14 @@ body.layout-drawer .popup-container {
 .buckets-container {
 	display: flex;
 	flex-direction: column;
-	gap: 16px;
+	gap: 14px;
 }
 
 .loading {
 	font-family: var(--font-mono);
 	text-align: center;
 	color: var(--text-secondary);
-	padding: 28px 0;
+	padding: 26px 0;
 	font-size: 12px;
 	letter-spacing: 0.01em;
 	opacity: 0.7;
@@ -303,14 +318,15 @@ body.layout-drawer .popup-container {
 .bucket-header {
 	display: flex;
 	align-items: center;
-	padding: 0 4px 8px 4px;
+	padding: 0 4px 8px;
 }
 
 .bucket-color {
 	width: 10px;
 	height: 10px;
-	border-radius: 50%;
+	border-radius: 3px;
 	margin-right: 8px;
+	box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.8);
 }
 
 .bucket-name {
@@ -334,7 +350,7 @@ body.layout-drawer .popup-container {
 	padding: 12px;
 	border-radius: var(--radius-lg);
 	border: 1px dashed transparent;
-	background: rgba(17, 24, 39, 0.02);
+	background: var(--surface-muted);
 	transition: background-color 0.2s, border-color 0.2s, box-shadow 0.2s;
 }
 
@@ -346,7 +362,7 @@ body.layout-drawer .popup-container {
 
 /* Course item */
 .course-item {
-	background: var(--card-bg);
+	background: var(--card-bg-solid);
 	padding: 16px;
 	border-radius: var(--radius-lg);
 	box-shadow: var(--shadow-sm);
@@ -358,7 +374,7 @@ body.layout-drawer .popup-container {
 .course-item:hover {
 	transform: translateY(-2px);
 	box-shadow: var(--shadow-md);
-	border-color: rgba(87, 6, 140, 0.1);
+	border-color: var(--border-strong);
 }
 
 .course-item.dragging {
@@ -386,7 +402,7 @@ body.layout-drawer .popup-container {
 	height: 28px;
 	border: none;
 	border-radius: 999px;
-	background: rgba(87, 6, 140, 0.08);
+	background: var(--accent-soft);
 	color: var(--nyu-purple);
 	cursor: pointer;
 	display: inline-flex;
@@ -405,6 +421,7 @@ body.layout-drawer .popup-container {
 	font-weight: 700;
 	font-size: 14px;
 	color: var(--nyu-purple);
+	letter-spacing: -0.01em;
 }
 
 .course-badge {
@@ -416,7 +433,7 @@ body.layout-drawer .popup-container {
 }
 
 .course-badge-recitation {
-	background: #f3e8ff;
+	background: var(--accent-soft);
 	color: var(--nyu-purple);
 }
 
@@ -472,15 +489,18 @@ body.layout-drawer .popup-container {
 .day-dot {
 	width: 22px;
 	height: 22px;
-	border-radius: 50%;
+	border-radius: 7px;
 	font-size: 10px;
 	font-weight: 700;
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	background: #f3f4f6;
-	color: #9ca3af;
-	transition: all 0.2s;
+	background: var(--surface-muted);
+	color: var(--text-muted);
+	transition:
+		background 0.18s ease,
+		color 0.18s ease,
+		transform 0.18s ease;
 }
 
 .day-dot.active {
@@ -489,7 +509,7 @@ body.layout-drawer .popup-container {
 }
 
 .course-credit-chip {
-	background: #f3f4f6;
+	background: var(--surface-muted);
 	color: var(--text-secondary);
 	font-weight: 600;
 	font-size: 11px;
@@ -502,7 +522,7 @@ body.layout-drawer .popup-container {
 	display: flex;
 	gap: 8px;
 	padding: 10px 20px;
-	background: var(--card-bg);
+	background: rgba(255, 255, 255, 0.9);
 	border-top: 1px solid var(--border-color);
 }
 
@@ -541,7 +561,9 @@ body.layout-drawer .popup-container {
 }
 
 .btn-primary {
-	background: var(--nyu-purple);
+	background:
+		linear-gradient(180deg, rgba(255, 255, 255, 0.12), transparent),
+		var(--nyu-purple);
 	color: white;
 	box-shadow:
 		inset 0 1px 0 rgba(255, 255, 255, 0.12),
@@ -581,13 +603,13 @@ body.layout-drawer .popup-container {
 }
 
 .btn-secondary {
-	background: var(--card-bg);
+	background: rgba(255, 255, 255, 0.72);
 	color: var(--text-secondary);
 	border-color: var(--border-color);
 }
 
 .btn-secondary:hover {
-	background: rgba(87, 6, 140, 0.04);
+	background: var(--accent-softer);
 	border-color: rgba(87, 6, 140, 0.22);
 	color: var(--nyu-purple);
 	transform: translateY(-1px);
@@ -627,7 +649,7 @@ body.layout-drawer .popup-container {
 	font-family: var(--font-mono);
 	font-size: 11px;
 	color: var(--text-secondary);
-	background: var(--card-bg);
+	background: rgba(255, 255, 255, 0.88);
 	border-top: 1px dashed var(--border-color);
 }
 
@@ -657,7 +679,7 @@ body.layout-drawer .popup-container {
 	font-family: var(--font-mono);
 	border: 1px dashed var(--border-color);
 	border-radius: var(--radius-md);
-	background: rgba(17, 24, 39, 0.015);
+	background: rgba(255, 255, 255, 0.58);
 }
 
 .empty-state-line {
@@ -679,7 +701,7 @@ body.layout-drawer .popup-container {
 .empty-state-cmd {
 	font-weight: 600;
 	color: var(--text-primary);
-	background: rgba(87, 6, 140, 0.06);
+	background: var(--accent-soft);
 	padding: 1px 6px;
 	border-radius: 4px;
 	border: 1px solid rgba(87, 6, 140, 0.12);
@@ -696,7 +718,7 @@ body.layout-drawer .popup-container {
 
 /* Planning Tray */
 .planning-tray-container {
-	background: var(--card-bg);
+	background: rgba(255, 255, 255, 0.68);
 	border-radius: var(--radius-md);
 	border: 1px solid var(--border-color);
 	padding: 10px;
@@ -714,7 +736,7 @@ body.layout-drawer .popup-container {
 	align-items: center;
 	gap: 10px;
 	padding: 7px 10px;
-	background: rgba(87, 6, 140, 0.03);
+	background: var(--accent-softer);
 	border-radius: 6px;
 	border: 1px solid transparent;
 	transition:
@@ -724,7 +746,7 @@ body.layout-drawer .popup-container {
 }
 
 .planning-item:hover {
-	background: rgba(87, 6, 140, 0.06);
+	background: var(--accent-soft);
 	border-color: rgba(87, 6, 140, 0.14);
 	transform: translateX(1px);
 }
@@ -768,7 +790,9 @@ body.layout-drawer .popup-container {
 	left: 0;
 	width: 100%;
 	height: 100%;
-	background: var(--bg-color);
+	background:
+		linear-gradient(180deg, rgba(255, 255, 255, 0.78), rgba(248, 249, 251, 0.96)),
+		var(--bg-color);
 	z-index: 100;
 	display: flex;
 	flex-direction: column;
@@ -810,7 +834,7 @@ body.layout-drawer .popup-container {
 	justify-content: space-between;
 	gap: 16px;
 	padding: 22px 20px 16px;
-	background: white;
+	background: var(--card-bg-solid);
 	border-bottom: 1px solid var(--border-color);
 }
 
@@ -834,7 +858,7 @@ body.layout-drawer .popup-container {
 	height: 34px;
 	border: none;
 	border-radius: 999px;
-	background: rgba(15, 23, 42, 0.06);
+	background: var(--surface-muted);
 	color: var(--text-secondary);
 	cursor: pointer;
 	font-size: 18px;
@@ -871,7 +895,7 @@ body.metadata-drawer-open .course-metadata-drawer {
 	align-items: center;
 	justify-content: space-between;
 	padding: 18px 20px;
-	background: var(--card-bg);
+	background: var(--card-bg-solid);
 	border-bottom: 1px solid var(--border-color);
 }
 
@@ -903,7 +927,7 @@ body.metadata-drawer-open .course-metadata-drawer {
 	align-items: center;
 	justify-content: space-between;
 	padding: 16px;
-	background: white;
+	background: var(--card-bg-solid);
 	border-radius: var(--radius-lg);
 	border: 1px solid var(--border-color);
 }

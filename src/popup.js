@@ -5,14 +5,12 @@
 		courseStorage,
 		plannerModule,
 		bucketModule,
-		constantsModule,
 		metadataPanelModule,
 	] =
 		await Promise.all([
 			import(chrome.runtime.getURL("src/course-storage.js")),
 			import(chrome.runtime.getURL("src/planner.js")),
 			import(chrome.runtime.getURL("src/bucket-manager.js")),
-			import(chrome.runtime.getURL("src/utils/constants.js")),
 			import(chrome.runtime.getURL("src/course-metadata-panel.js")),
 		]);
 
@@ -27,7 +25,6 @@
 	} = courseStorage;
 	const { analyzeSchedule } = plannerModule;
 	const { renderBuckets } = bucketModule;
-	const { CURRENT_TERM_NAME } = constantsModule;
 	const { renderCourseMetadataContent } = metadataPanelModule;
 
 	const params = new URLSearchParams(window.location.search);
@@ -70,6 +67,7 @@
 	let currentBuckets = [];
 	let activeMetadataCourseId = null;
 	let cachedProfRatings = {};
+	const ACTIVE_TERM_KEY = "activeTerm";
 
 	function scheduleLoadData() {
 		if (loadDataDebounceTimer) {
@@ -130,6 +128,23 @@
 
 	function wait(ms) {
 		return new Promise((resolve) => setTimeout(resolve, ms));
+	}
+
+	function getTermBadgeLabel(courses, activeTerm = null) {
+		const termNames = [
+			...new Set(
+				courses
+					.map((course) => course?.term?.name)
+					.filter((name) => typeof name === "string" && name.trim()),
+			),
+		];
+
+		if (termNames.length === 1) return termNames[0];
+		if (termNames.length > 1) return `${termNames.length} terms`;
+		if (typeof activeTerm?.name === "string" && activeTerm.name.trim()) {
+			return activeTerm.name;
+		}
+		return "schedule";
 	}
 
 	function closeCourseMetadataDrawer() {
@@ -215,10 +230,6 @@
 	}
 
 	async function init() {
-		if (termBadge) {
-			termBadge.textContent = CURRENT_TERM_NAME;
-		}
-
 		await loadData();
 		setupEventListeners();
 		listenForUpdates();
@@ -233,15 +244,22 @@
 				statCoursesCount.textContent = `${analysis.totalCourses} ${label}`;
 			}
 
-			const [courses, buckets, plannerSelection, profRatings] = await Promise.all([
+			const [courses, buckets, plannerSelection, profRatings, termResult] = await Promise.all([
 				getCourses(),
 				getBuckets(),
 				getPlannerSelection(),
 				getProfessorRatings(),
+				chrome.storage.local.get(ACTIVE_TERM_KEY),
 			]);
 			currentCourses = courses;
 			currentBuckets = buckets;
 			cachedProfRatings = profRatings;
+			if (termBadge) {
+				termBadge.textContent = getTermBadgeLabel(
+					courses,
+					termResult[ACTIVE_TERM_KEY],
+				);
+			}
 
 			renderPlanningTray(courses, plannerSelection);
 
@@ -250,7 +268,7 @@
         <div class="empty-state">
           <p class="empty-state-line">// no courses yet</p>
           <p class="empty-state-text">
-            open albert shopping cart,<br>
+            open albert enrollment,<br>
             then run <span class="empty-state-cmd">fetch from albert</span>.
           </p>
         </div>
@@ -342,9 +360,15 @@
 
 	function listenForUpdates() {
 		chrome.storage.onChanged.addListener((changes, namespace) => {
-			if (namespace === "local" && (changes.courses || changes.buckets || changes.professorRatings)) {
-				scheduleLoadData();
-			}
+				if (
+					namespace === "local" &&
+					(changes.courses ||
+						changes.buckets ||
+						changes.professorRatings ||
+						changes[ACTIVE_TERM_KEY])
+				) {
+					scheduleLoadData();
+				}
 		});
 
 		document.addEventListener("professor-ratings-changed", async () => {
@@ -413,6 +437,12 @@
 			}
 
 			assertValidParseResponse(response);
+			if (response.term) {
+				await chrome.storage.local.set({ [ACTIVE_TERM_KEY]: response.term });
+				if (termBadge) {
+					termBadge.textContent = getTermBadgeLabel([], response.term);
+				}
+			}
 
 			if (response.courses.length > 0) {
 				await chrome.storage.local.set({ courses: response.courses });
@@ -439,10 +469,10 @@
 				await loadData();
 			} else {
 				setFetchLabel("no courses found");
-				const errorMsg = response.error || "No courses found in shopping cart.";
+				const errorMsg = response.error || "No courses found in Albert.";
 				alert(
 					errorMsg +
-						"\n\nMake sure you're on the Shopping Cart page with courses added.",
+						"\n\nMake sure you're on Albert's enrollment summary or Shopping Cart page with courses added.",
 				);
 			}
 		} catch (error) {
@@ -450,7 +480,7 @@
 			setFetchLabel("fetch failed");
 			alert(
 				error.message ||
-					"Failed to fetch courses.\nMake sure you're on Albert's Shopping Cart page and try refreshing the page.",
+					"Failed to fetch courses.\nMake sure you're on Albert's enrollment summary or Shopping Cart page and try refreshing the page.",
 			);
 		} finally {
 			setTimeout(() => {
@@ -487,8 +517,12 @@
 			return;
 		}
 
-		try {
-			await chrome.storage.local.set({ courses: [], plannerSelection: [] });
+			try {
+				await chrome.storage.local.set({
+					courses: [],
+					plannerSelection: [],
+					[ACTIVE_TERM_KEY]: null,
+				});
 			await chrome.action.setBadgeText({ text: "" });
 			await loadData();
 		} catch (error) {
