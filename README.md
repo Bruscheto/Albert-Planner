@@ -10,12 +10,10 @@ A Chrome extension that enhances NYU's Albert course registration. Scrapes your 
 - **Course metadata panel** — quick-view course details without leaving the page
 - **Export/Import** — backup your picks as JSON
 
-## Install
+## Usage
 
-1. Clone this repo
-2. Go to `chrome://extensions/` → enable **Developer mode**
-3. **Load unpacked** → select this folder
-4. Navigate to [Albert](https://sis.nyu.edu) and start planning
+1. Install from Chrome Web Store: https://chromewebstore.google.com/detail/albert-planner/lndleikbfacmkakhcfflpgnlapoekmoa
+2. Open your NYU Albert and try it out!
 
 Works on Chrome and Edge (Chromium-based).
 
