@@ -1,0 +1,18 @@
+{
+	"name": "albert-planner",
+	"version": "1.0.1",
+	"private": true,
+	"type": "module",
+	"description": "Chrome extension for planning NYU Albert schedules.",
+	"scripts": {
+		"build": "vite build",
+		"dev": "vite build --watch",
+		"test:rmp-matcher": "node test/scripts/rmp-matcher.test.js"
+	},
+	"devDependencies": {
+		"vite": "^8.0.16"
+	},
+	"overrides": {
+		"esbuild": "^0.28.1"
+	}
+}

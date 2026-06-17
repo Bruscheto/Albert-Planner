@@ -1,29 +1,25 @@
 // Background service worker for Albert Course Planner
 
-import { initializeStorage } from "./course-storage.js";
+import { initializeStorage, getProfessorRatings } from "./course-storage.js";
+import { STORAGE_KEYS } from "./utils/constants.js";
+import {
+	normalizeProfessorName,
+	searchNyuProfessorMatch,
+} from "./rmp-service.js";
+
+const INSTRUCTOR_TBA_PATTERN = /^(TBA|to be announced)$/i;
 
 const PANEL_PATH = "src/popup.html?mode=sidepanel";
 const WEEKLY_VIEW_PATH = "src/weekly-view.html";
 const ALLOWED_SIDE_PANEL_HOSTS = ["sis.portal.nyu.edu", "sis.nyu.edu"];
+const RMP_PROFESSOR_CACHE_KEY = "rmpProfessorCache";
+const RMP_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 const hasSidePanelApi = Boolean(chrome.sidePanel);
 
 console.log("[Albert Enhancer] Background service worker started");
 
 function isNonEmptyString(value) {
 	return typeof value === "string" && value.trim().length > 0;
-}
-
-function isValidCoursePayload(course) {
-	if (!course || typeof course !== "object") {
-		return false;
-	}
-
-	return (
-		isNonEmptyString(course.id) &&
-		isNonEmptyString(course.courseCode) &&
-		isNonEmptyString(course.section) &&
-		Array.isArray(course.components)
-	);
 }
 
 function isBenignTabsError(error) {
@@ -83,16 +79,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 	console.log("[Albert Enhancer] Message received:", message.type);
 
 	switch (message.type) {
-		case "COURSES_PARSED":
-			// Content script parsed the shopping cart - save to storage
-			handleCoursesParsed(message.courses, sender.tab).catch((error) => {
-				console.error(
-					"[Albert Enhancer] Failed to persist parsed courses:",
-					error,
-				);
-			});
-			break;
-
 		case "OPEN_PLANNER":
 			openPlannerPage().catch((error) => {
 				console.error("[Albert Enhancer] Failed to open planner page:", error);
@@ -128,6 +114,24 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 	}
 });
 
+// Courses are saved directly to storage by the popup/weekly view, so enrich
+// ratings whenever the stored course list changes (any save path).
+chrome.storage.onChanged.addListener((changes, namespace) => {
+	if (namespace !== "local" || !changes.courses) {
+		return;
+	}
+	const courses = changes.courses.newValue;
+	if (!Array.isArray(courses) || courses.length === 0) {
+		return;
+	}
+	enrichProfessorRatingsFromCourses(courses).catch((error) => {
+		console.error(
+			"[Albert Enhancer] Failed to enrich professor ratings:",
+			error,
+		);
+	});
+});
+
 if (hasSidePanelApi) {
 	chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
 		const nextUrl = changeInfo.url || tab?.url;
@@ -160,45 +164,149 @@ if (hasSidePanelApi) {
 
 // ============ Message Handlers ============
 
-async function handleCoursesParsed(courses, tab) {
-	if (!Array.isArray(courses)) {
-		throw new Error("Parsed courses payload must be an array");
-	}
-
-	const filteredCourses = courses.filter(isValidCoursePayload);
-	if (filteredCourses.length !== courses.length) {
-		throw new Error("Parsed courses payload contains invalid course objects");
-	}
-
-	// Save parsed courses to storage
-	await chrome.storage.local.set({ courses: filteredCourses });
-	console.log(
-		"[Albert Enhancer] Saved",
-		filteredCourses.length,
-		"courses to storage",
-	);
-
-	// Update badge with course count
-	if (filteredCourses.length > 0) {
-		await chrome.action.setBadgeText({
-			text: filteredCourses.length.toString(),
-			tabId: tab?.id,
-		});
-		await chrome.action.setBadgeBackgroundColor({
-			color: "#57068c",
-			tabId: tab?.id,
-		});
-	} else {
-		await chrome.action.setBadgeText({
-			text: "",
-			tabId: tab?.id,
-		});
-	}
-}
-
 async function handleGetCourses() {
 	const result = await chrome.storage.local.get("courses");
 	return result.courses || [];
+}
+
+async function getRmpProfessorCache() {
+	const result = await chrome.storage.local.get(RMP_PROFESSOR_CACHE_KEY);
+	const cache = result[RMP_PROFESSOR_CACHE_KEY];
+	return cache && typeof cache === "object" ? cache : {};
+}
+
+async function readCachedRmpProfessor(cacheKey) {
+	const cache = await getRmpProfessorCache();
+	const cached = cache[cacheKey];
+
+	if (!cached) {
+		return { hit: false, value: null };
+	}
+	if (typeof cached.expiresAt !== "number" || Date.now() >= cached.expiresAt) {
+		const { [cacheKey]: _expired, ...nextCache } = cache;
+		await chrome.storage.local.set({ [RMP_PROFESSOR_CACHE_KEY]: nextCache });
+		return { hit: false, value: null };
+	}
+
+	return { hit: true, value: cached.value ?? null };
+}
+
+async function writeCachedRmpProfessor(cacheKey, value) {
+	const cache = await getRmpProfessorCache();
+	await chrome.storage.local.set({
+		[RMP_PROFESSOR_CACHE_KEY]: {
+			...cache,
+			[cacheKey]: {
+				value,
+				expiresAt: Date.now() + RMP_CACHE_TTL_MS,
+			},
+		},
+	});
+}
+
+function buildRmpCacheKey({ professorName, courseCode = "" }) {
+	return [normalizeProfessorName(professorName).toLowerCase(), courseCode || ""]
+		.filter(Boolean)
+		.join("|");
+}
+
+// Resolve an RMP match through the shared cache, falling back to a live search.
+async function resolveRmpMatch({ professorName, courseCode = "", courseTitle = "" }) {
+	const normalizedName = normalizeProfessorName(professorName);
+	if (!normalizedName) {
+		return null;
+	}
+
+	const cacheKey = buildRmpCacheKey({
+		professorName: normalizedName,
+		courseCode,
+	});
+	const cached = await readCachedRmpProfessor(cacheKey);
+	if (cached.hit) {
+		return cached.value;
+	}
+
+	const match = await searchNyuProfessorMatch({
+		professorName: normalizedName,
+		courseCode,
+		courseTitle,
+	});
+	await writeCachedRmpProfessor(cacheKey, match);
+	return match;
+}
+
+function isRealInstructor(name) {
+	return isNonEmptyString(name) && !INSTRUCTOR_TBA_PATTERN.test(name.trim());
+}
+
+// Map each distinct instructor to the first course that names them, so the
+// course code/title can disambiguate professors who share a last name.
+function collectInstructorLookups(courses) {
+	const lookups = new Map();
+	for (const course of courses) {
+		for (const component of course.components || []) {
+			const name = component.instructor?.trim();
+			if (!isRealInstructor(name) || lookups.has(name)) {
+				continue;
+			}
+			lookups.set(name, {
+				professorName: name,
+				courseCode:
+					typeof course.courseCode === "string" ? course.courseCode : "",
+				courseTitle: typeof course.title === "string" ? course.title : "",
+			});
+		}
+	}
+	return lookups;
+}
+
+async function enrichProfessorRatingsFromCourses(courses) {
+	const lookups = collectInstructorLookups(courses);
+	if (lookups.size === 0) {
+		return;
+	}
+
+	const existingRatings = await getProfessorRatings();
+	const resolvedRatings = {};
+
+	for (const [name, context] of lookups) {
+		// Never overwrite a manually entered or previously resolved rating.
+		if (existingRatings[name] != null) {
+			continue;
+		}
+		try {
+			const match = await resolveRmpMatch(context);
+			const avgRating = Number(match?.professor?.avgRating);
+			if (
+				match?.status === "matched" &&
+				Number.isFinite(avgRating) &&
+				avgRating > 0
+			) {
+				resolvedRatings[name] = avgRating;
+			}
+		} catch (error) {
+			console.error(
+				"[Albert Enhancer] RMP rating lookup failed for",
+				name,
+				error,
+			);
+		}
+	}
+
+	if (Object.keys(resolvedRatings).length === 0) {
+		return;
+	}
+
+	// Re-read before writing so concurrent edits (manual ratings) win.
+	const latestRatings = await getProfessorRatings();
+	await chrome.storage.local.set({
+		[STORAGE_KEYS.PROFESSOR_RATINGS]: { ...resolvedRatings, ...latestRatings },
+	});
+	console.log(
+		"[Albert Enhancer] Stored",
+		Object.keys(resolvedRatings).length,
+		"professor ratings from RMP",
+	);
 }
 
 async function openPlannerPage() {

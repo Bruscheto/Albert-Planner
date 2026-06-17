@@ -17,6 +17,8 @@ export const state = {
 	coursesById: new Map(),
 	currentBuckets: [],
 	activeMetadataCourseId: null,
+	activeMetadataComponentSection: null,
+	activeMetadataComponentType: null,
 	lastCourseBlockDragEndedAt: 0,
 	isSidebarOpen: true,
 	cachedPlannedSchedule: [],

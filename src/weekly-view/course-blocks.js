@@ -170,13 +170,13 @@ function createCourseBlock(component, bucketDetails, options = {}) {
 		if (Date.now() - state.lastCourseBlockDragEndedAt < 200) {
 			return;
 		}
-		openCourseMetadataDrawer(component.courseId);
+		openCourseMetadataDrawer(component.courseId, component);
 	});
 
 	block.addEventListener("keydown", (event) => {
 		if (event.key === "Enter" || event.key === " ") {
 			event.preventDefault();
-			openCourseMetadataDrawer(component.courseId);
+			openCourseMetadataDrawer(component.courseId, component);
 		}
 	});
 

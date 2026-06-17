@@ -10,7 +10,11 @@
 		"contextMenus",
 		"sidePanel"
 	],
-	"host_permissions": ["https://sis.portal.nyu.edu/*", "https://sis.nyu.edu/*"],
+	"host_permissions": [
+		"https://sis.portal.nyu.edu/*",
+		"https://sis.nyu.edu/*",
+		"https://www.ratemyprofessors.com/*"
+	],
 	"background": {
 		"service_worker": "src/background.js",
 		"type": "module"

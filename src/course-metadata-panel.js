@@ -1,5 +1,5 @@
+import { setProfessorRating } from "./course-storage.js";
 import { formatTime } from "./utils/time-parser.js";
-import { getProfessorRatings, setProfessorRating } from "./course-storage.js";
 
 function getPrimaryComponent(course) {
 	return (
@@ -35,12 +35,8 @@ export function ratingTier(val) {
 	return "low";
 }
 
-function formatMetaLine(course) {
+function formatMetaLine(component) {
 	const parts = [];
-	if (course.section) {
-		parts.push(`Section ${course.section}`);
-	}
-	const component = getPrimaryComponent(course);
 	if (component?.timeRange) {
 		const dayLabel =
 			Array.isArray(component.days) && component.days.length
@@ -53,6 +49,14 @@ function formatMetaLine(course) {
 		parts.push("Time TBA");
 	}
 	return parts.join(" \u00B7 ");
+}
+
+function formatLocation(component) {
+	const room = component?.room?.trim();
+	if (!room || /^(TBA|to be announced)$/i.test(room)) {
+		return "";
+	}
+	return room;
 }
 
 function buildStatusTags(context) {
@@ -175,7 +179,7 @@ function showRatingInput(badge, profName, currentVal) {
 		if (raw === "") {
 			await setProfessorRating(profName, null);
 			badge.classList.remove("has-value");
-			badge.textContent = "★";
+			badge.textContent = "~";
 			badge.title = "Add rating";
 		} else {
 			const val = Math.min(5, Math.max(0, parseFloat(raw) || 0));
@@ -208,6 +212,7 @@ export function renderCourseMetadataContent({
 	buckets,
 	context = {},
 	ratings = {},
+	focusComponent = null,
 	onBucketSelect,
 }) {
 	if (!container) return;
@@ -227,10 +232,16 @@ export function renderCourseMetadataContent({
 	const summary = document.createElement("div");
 	summary.className = "metadata-summary";
 
+	const displayComponent = focusComponent || getPrimaryComponent(course);
+	const section = displayComponent?.section ?? course.section;
+	const sectionMarkup = section
+		? ` <span class="metadata-course-section">· ${section}</span>`
+		: "";
+
 	const headline = document.createElement("div");
 	headline.className = "metadata-headline";
 	headline.innerHTML = `
-		<h2 class="metadata-course-code">${course.courseCode}</h2>
+		<h2 class="metadata-course-code">${course.courseCode}${sectionMarkup}</h2>
 		<span class="metadata-credit-pill">${course.credits ?? "-"} cr</span>
 	`;
 
@@ -240,9 +251,17 @@ export function renderCourseMetadataContent({
 
 	const meta = document.createElement("p");
 	meta.className = "metadata-meta-line";
-	meta.textContent = formatMetaLine(course);
+	meta.textContent = formatMetaLine(displayComponent);
 
 	summary.append(headline, title, meta);
+
+	const location = formatLocation(displayComponent);
+	if (location) {
+		const locationLine = document.createElement("p");
+		locationLine.className = "metadata-location-line";
+		locationLine.textContent = location;
+		summary.appendChild(locationLine);
+	}
 
 	const instructors = getInstructors(course);
 	if (instructors.length > 0) {
@@ -273,7 +292,7 @@ export function renderCourseMetadataContent({
 				badge.textContent = num.toFixed(1);
 				badge.title = `Rating: ${ratingVal}/5 — click to edit`;
 			} else {
-				badge.textContent = "★";
+				badge.textContent = "~";
 				badge.title = "Add rating";
 			}
 			badge.addEventListener("click", (e) => {

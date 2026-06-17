@@ -158,7 +158,12 @@ function normalizeText(value) {
 function normalizeLocation(value) {
 	return normalizeText(value)
 		.replace(/([^\s])Loc:/g, "$1 Loc:")
-		.replace(/:\s*/g, ": ");
+		.replace(/:\s*/g, ": ")
+		.replace(/^\s*In[-\s]?Person\b:?\s*/i, "")
+		.replace(/\bLoc:\s*/gi, "")
+		.replace(/\s+(?:Washington Sq(?:uare)?|Brooklyn|Manhattan|Midtown)\s*$/i, "")
+		.replace(/\s+/g, " ")
+		.trim();
 }
 
 function parseTermInfo(text) {

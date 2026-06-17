@@ -1,0 +1,202 @@
+{
+	"sourceUrls": [
+		"https://cas.nyu.edu/core/course-listing/2526Courses/PSAY2526.html",
+		"https://cas.nyu.edu/core/course-listing/2526Courses/LSAY2526.html",
+		"https://cas.nyu.edu/core/course-listing/2526Courses/TIAY2526.html",
+		"https://cas.nyu.edu/core/course-listing/2526Courses/ECAY2526.html",
+		"https://cas.nyu.edu/core/course-listing/2526Courses/SSAY2526.html",
+		"https://cas.nyu.edu/core/course-listing/2526Courses/QRAY2526.html"
+	],
+	"note": "These CAS Core pages are labeled 2025-2026 and expose Fall 2025 plus Spring 2026 rows, not Fall 2026 rows.",
+	"cases": [
+		{
+			"id": "cas-physical-science-chemistry-goldberg",
+			"courseCode": "CORE-UA 203",
+			"courseTitle": "Physical Science: Energy & The Environment",
+			"professorName": "Goldberg",
+			"expectedStatus": "ambiguous",
+			"candidateSet": "goldberg-chemistry"
+		},
+		{
+			"id": "cas-life-science-neuroscience-fenton",
+			"courseCode": "CORE-UA 306",
+			"courseTitle": "Life Science: Brain and Behavior",
+			"professorName": "Fenton",
+			"expectedStatus": "matched",
+			"expectedProfessorName": "Andre Fenton",
+			"candidateSet": "fenton-neuroscience"
+		},
+		{
+			"id": "cas-texts-ideas-judaic-jassen",
+			"courseCode": "CORE-UA 400",
+			"courseTitle": "Texts and Ideas: Topics-The Global Bible",
+			"professorName": "Jassen",
+			"expectedStatus": "ambiguous",
+			"candidateSet": "jassen-judaic"
+		},
+		{
+			"id": "cas-expressive-culture-art-history-broderick",
+			"courseCode": "CORE-UA 722",
+			"courseTitle": "Expressive Culture: Architecture in New York Field Study",
+			"professorName": "Broderick",
+			"expectedStatus": "matched",
+			"expectedProfessorName": "Mosette Broderick",
+			"candidateSet": "broderick-art-history"
+		},
+		{
+			"id": "cas-texts-ideas-ambiguous-no-department",
+			"courseCode": "CORE-UA 400",
+			"courseTitle": "Texts and Ideas: Topics-Children and Childhood",
+			"professorName": "Klass",
+			"expectedStatus": "ambiguous",
+			"candidateSet": "klass-ambiguous"
+		},
+		{
+			"id": "cas-physical-science-goldberg-course-labels",
+			"courseCode": "CORE-UA 203",
+			"courseTitle": "Physical Science: Energy & The Environment",
+			"professorName": "Goldberg",
+			"expectedStatus": "matched",
+			"expectedProfessorName": "Burt Goldberg",
+			"candidateSet": "goldberg-live-course-labels"
+		}
+	],
+	"candidateSets": {
+		"goldberg-chemistry": [
+			{
+				"id": "teacher-mark-goldberg",
+				"legacyId": 910001,
+				"firstName": "Mark",
+				"lastName": "Goldberg",
+				"department": "Chemistry",
+				"avgRating": 3.7,
+				"numRatings": 21,
+				"avgDifficulty": 3.2,
+				"school": { "id": "U2Nob29sLTY3NQ==", "name": "New York University" }
+			},
+			{
+				"id": "teacher-rachel-goldberg",
+				"legacyId": 910002,
+				"firstName": "Rachel",
+				"lastName": "Goldberg",
+				"department": "History",
+				"avgRating": 4.4,
+				"numRatings": 38,
+				"avgDifficulty": 2.4,
+				"school": { "id": "U2Nob29sLTY3NQ==", "name": "New York University" }
+			}
+		],
+		"fenton-neuroscience": [
+			{
+				"id": "teacher-andre-fenton",
+				"legacyId": 910003,
+				"firstName": "Andre",
+				"lastName": "Fenton",
+				"department": "Neuroscience",
+				"avgRating": 4.1,
+				"numRatings": 12,
+				"avgDifficulty": 3.8,
+				"school": { "id": "U2Nob29sLTY3NQ==", "name": "New York University" }
+			}
+		],
+		"jassen-judaic": [
+			{
+				"id": "teacher-alex-jassen",
+				"legacyId": 910004,
+				"firstName": "Alex",
+				"lastName": "Jassen",
+				"department": "Hebrew and Judaic Studies",
+				"avgRating": 4.6,
+				"numRatings": 18,
+				"avgDifficulty": 2.9,
+				"school": { "id": "U2Nob29sLTY3NQ==", "name": "New York University" }
+			},
+			{
+				"id": "teacher-drew-jassen",
+				"legacyId": 910005,
+				"firstName": "Drew",
+				"lastName": "Jassen",
+				"department": "College Core Curriculum",
+				"avgRating": 4.2,
+				"numRatings": 8,
+				"avgDifficulty": 3.1,
+				"school": { "id": "U2Nob29sLTY3NQ==", "name": "New York University" }
+			}
+		],
+		"broderick-art-history": [
+			{
+				"id": "teacher-mosette-broderick",
+				"legacyId": 910006,
+				"firstName": "Mosette",
+				"lastName": "Broderick",
+				"department": "Art History",
+				"avgRating": 4.5,
+				"numRatings": 26,
+				"avgDifficulty": 3.4,
+				"school": { "id": "U2Nob29sLTY3NQ==", "name": "New York University" }
+			}
+		],
+		"klass-ambiguous": [
+			{
+				"id": "teacher-perri-klass",
+				"legacyId": 910007,
+				"firstName": "Perri",
+				"lastName": "Klass",
+				"department": "Journalism",
+				"avgRating": 4.7,
+				"numRatings": 25,
+				"avgDifficulty": 2.3,
+				"school": { "id": "U2Nob29sLTY3NQ==", "name": "New York University" }
+			},
+			{
+				"id": "teacher-jordan-klass",
+				"legacyId": 910008,
+				"firstName": "Jordan",
+				"lastName": "Klass",
+				"department": "School of Medicine",
+				"avgRating": 4.5,
+				"numRatings": 19,
+				"avgDifficulty": 2.8,
+				"school": { "id": "U2Nob29sLTY3NQ==", "name": "New York University" }
+			}
+		],
+		"goldberg-live-course-labels": [
+			{
+				"id": "VGVhY2hlci04Mzc1",
+				"legacyId": 8375,
+				"firstName": "Burt",
+				"lastName": "Goldberg",
+				"department": "Biology",
+				"avgRating": 3.3,
+				"numRatings": 127,
+				"avgDifficulty": 2.4,
+				"school": { "id": "U2Nob29sLTY3NQ==", "name": "New York University" },
+				"ratingCourseLabels": ["CHEM126", "COREUA203", "ENERGYENV"]
+			},
+			{
+				"id": "VGVhY2hlci0yMTYwNjU=",
+				"legacyId": 216065,
+				"firstName": "Ben",
+				"lastName": "Goldberg",
+				"department": "Computer Science",
+				"avgRating": 4.7,
+				"numRatings": 65,
+				"avgDifficulty": 3.1,
+				"school": { "id": "U2Nob29sLTY3NQ==", "name": "New York University" },
+				"ratingCourseLabels": ["CSCIUA101", "DSUA202"]
+			},
+			{
+				"id": "VGVhY2hlci0xMDI0ODM0",
+				"legacyId": 1024834,
+				"firstName": "Carolyn",
+				"lastName": "Goldberg",
+				"department": "Mathematics",
+				"avgRating": 4.7,
+				"numRatings": 3,
+				"avgDifficulty": 3,
+				"school": { "id": "U2Nob29sLTY3NQ==", "name": "New York University" },
+				"ratingCourseLabels": ["MATHUA121"]
+			}
+		]
+	}
+}

@@ -69,82 +69,132 @@
     </style>
     <script>
     // MUST be in <head> so it runs BEFORE iframes load and execute chrome-mock.js
+    const testTerm = {
+        name: "Fall 2026",
+        termCode: "1268"
+    };
+
     window.__sharedStorage = {
         courses: [
             {
                 id: "cs-ua101-001", courseCode: "CSCI-UA 101", section: "001",
                 title: "Introduction to Computer Science", credits: 4, bucket: "required",
+                term: testTerm,
                 components: [
-                    { type: "Lecture", days: ["Mon", "Wed"], timeRange: { start: { hours: 9, minutes: 30 }, end: { hours: 10, minutes: 45 } }, instructor: "Craig Kapp", room: "GCASL 361" },
-                    { type: "Recitation", days: ["Fri"], timeRange: { start: { hours: 12, minutes: 30 }, end: { hours: 13, minutes: 20 } }, instructor: "TBA", room: "GCASL 275" }
+                    { type: "Lecture", days: ["Mon", "Wed"], timeRange: { start: { hours: 9, minutes: 30 }, end: { hours: 10, minutes: 45 } }, instructor: "Craig Kapp", room: "GCASL 361", status: "In Cart" },
+                    { type: "Recitation", days: ["Fri"], timeRange: { start: { hours: 12, minutes: 30 }, end: { hours: 13, minutes: 20 } }, instructor: "TBA", room: "GCASL 275", status: "In Cart" }
                 ]
             },
             {
                 id: "cs-ua201-002", courseCode: "CSCI-UA 201", section: "002",
                 title: "Computer Systems Organization", credits: 4, bucket: "required",
+                term: testTerm,
                 components: [
-                    { type: "Lecture", days: ["Tue", "Thu"], timeRange: { start: { hours: 11, minutes: 0 }, end: { hours: 12, minutes: 15 } }, instructor: "Gustavo Sandoval", room: "WWH 102" }
+                    { type: "Lecture", days: ["Tue", "Thu"], timeRange: { start: { hours: 11, minutes: 0 }, end: { hours: 12, minutes: 15 } }, instructor: "Gustavo Sandoval", room: "WWH 102", status: "In Cart" }
                 ]
             },
             {
                 id: "cs-ua310-001", courseCode: "CSCI-UA 310", section: "001",
                 title: "Basic Algorithms", credits: 4, bucket: "high",
+                term: testTerm,
                 components: [
-                    { type: "Lecture", days: ["Mon", "Wed"], timeRange: { start: { hours: 14, minutes: 0 }, end: { hours: 15, minutes: 15 } }, instructor: "Alan Siegel", room: "WWH 109" }
+                    { type: "Lecture", days: ["Mon", "Wed"], timeRange: { start: { hours: 14, minutes: 0 }, end: { hours: 15, minutes: 15 } }, instructor: "Alan Siegel", room: "WWH 109", status: "In Cart" }
+                ]
+            },
+            {
+                id: "cs-ua310-004", courseCode: "CSCI-UA 310", section: "004",
+                title: "Basic Algorithms", credits: 4, bucket: "backup",
+                term: testTerm,
+                components: [
+                    { type: "Lecture", days: ["Tue", "Thu"], timeRange: { start: { hours: 16, minutes: 55 }, end: { hours: 18, minutes: 10 } }, instructor: "Dennis Shasha", room: "WWH 109", status: "Open" }
                 ]
             },
             {
                 id: "math-ua120-003", courseCode: "MATH-UA 120", section: "003",
                 title: "Discrete Mathematics", credits: 4, bucket: "required",
+                term: testTerm,
                 components: [
-                    { type: "Lecture", days: ["Mon", "Wed"], timeRange: { start: { hours: 11, minutes: 0 }, end: { hours: 12, minutes: 15 } }, instructor: "Yuri Bakhtin", room: "WWH 201" }
+                    { type: "Lecture", days: ["Mon", "Wed"], timeRange: { start: { hours: 11, minutes: 0 }, end: { hours: 12, minutes: 15 } }, instructor: "Yuri Bakhtin", room: "WWH 201", status: "In Cart" }
                 ]
             },
             {
                 id: "core-ua400-001", courseCode: "CORE-UA 400", section: "001",
                 title: "Texts & Ideas: The Modern Self", credits: 4, bucket: "medium",
+                term: testTerm,
                 components: [
-                    { type: "Lecture", days: ["Tue", "Thu"], timeRange: { start: { hours: 9, minutes: 30 }, end: { hours: 10, minutes: 45 } }, instructor: "Maria Pearson", room: "SILV 520" }
+                    { type: "Lecture", days: ["Tue", "Thu"], timeRange: { start: { hours: 9, minutes: 30 }, end: { hours: 10, minutes: 45 } }, instructor: "Maria Pearson", room: "SILV 520", status: "In Cart" }
+                ]
+            },
+            {
+                id: "psych-ua1-002", courseCode: "PSYCH-UA 1", section: "002",
+                title: "Introduction to Psychology", credits: 4, bucket: "medium",
+                term: testTerm,
+                components: [
+                    { type: "Lecture", days: ["Tue", "Thu"], timeRange: { start: { hours: 9, minutes: 30 }, end: { hours: 10, minutes: 45 } }, instructor: "Elizabeth Phelps", room: "Meyer 122", status: "Waitlist" }
+                ]
+            },
+            {
+                id: "chem-ua125-001", courseCode: "CHEM-UA 125", section: "001",
+                title: "General Chemistry I & Laboratory", credits: 5, bucket: "low",
+                term: testTerm,
+                components: [
+                    { type: "Lecture", days: ["Mon", "Wed"], timeRange: { start: { hours: 8, minutes: 0 }, end: { hours: 9, minutes: 15 } }, instructor: "Marc Walters", room: "Silver 703", status: "Open" },
+                    { type: "Laboratory", days: [], timeRange: null, instructor: "TBA", room: "TBA", status: "Open" }
                 ]
             },
             {
                 id: "phys-ua11-001", courseCode: "PHYS-UA 11", section: "001",
                 title: "General Physics I", credits: 3, bucket: "low",
+                term: testTerm,
                 components: [
-                    { type: "Lecture", days: ["Mon", "Wed"], timeRange: { start: { hours: 15, minutes: 30 }, end: { hours: 16, minutes: 45 } }, instructor: "Javad Shabani", room: "Meyer 121" },
-                    { type: "Recitation", days: ["Fri"], timeRange: { start: { hours: 9, minutes: 0 }, end: { hours: 10, minutes: 15 } }, instructor: "TBA", room: "Meyer 264" }
+                    { type: "Lecture", days: ["Mon", "Wed"], timeRange: { start: { hours: 15, minutes: 30 }, end: { hours: 16, minutes: 45 } }, instructor: "Javad Shabani", room: "Meyer 121", status: "Open" },
+                    { type: "Recitation", days: ["Fri"], timeRange: { start: { hours: 9, minutes: 0 }, end: { hours: 10, minutes: 15 } }, instructor: "TBA", room: "Meyer 264", status: "Open" }
                 ]
             },
             {
                 id: "econ-ua1-005", courseCode: "ECON-UA 1", section: "005",
                 title: "Intro to Macroeconomics", credits: 4, bucket: "backup",
+                term: testTerm,
                 components: [
-                    { type: "Lecture", days: ["Tue", "Thu"], timeRange: { start: { hours: 14, minutes: 0 }, end: { hours: 15, minutes: 15 } }, instructor: "William Easterly", room: "GCASL 269" }
+                    { type: "Lecture", days: ["Tue", "Thu"], timeRange: { start: { hours: 14, minutes: 0 }, end: { hours: 15, minutes: 15 } }, instructor: "William Easterly", room: "GCASL 269", status: "Open" }
                 ]
             },
             {
                 id: "mus-ua160-001", courseCode: "MUS-UA 160", section: "001",
                 title: "World Musics", credits: 4, bucket: null,
+                term: testTerm,
                 components: [
-                    { type: "Lecture", days: ["Tue", "Thu"], timeRange: { start: { hours: 15, minutes: 30 }, end: { hours: 16, minutes: 45 } }, instructor: "David Samuels", room: "Online" }
+                    { type: "Lecture", days: ["Tue", "Thu"], timeRange: { start: { hours: 15, minutes: 30 }, end: { hours: 16, minutes: 45 } }, instructor: "David Samuels", room: "Online", status: "Open" }
+                ]
+            },
+            {
+                id: "expos-ua1-020", courseCode: "EXPOS-UA 1", section: "020",
+                title: "Writing the Essay", credits: 4, bucket: null,
+                term: testTerm,
+                components: [
+                    { type: "Seminar", days: ["Fri"], timeRange: { start: { hours: 14, minutes: 0 }, end: { hours: 16, minutes: 30 } }, instructor: "Nadia Johnson", room: "Bobst LL144", status: "Closed" }
                 ]
             }
         ],
         buckets: [
-            { id: "required", name: "Required", color: "#f97316", priority: 1 },
-            { id: "high", name: "High Priority", color: "#3b82f6", priority: 2 },
-            { id: "medium", name: "Medium Priority", color: "#eab308", priority: 3 },
-            { id: "low", name: "Low Priority", color: "#22c55e", priority: 4 },
-            { id: "backup", name: "Backup", color: "#6b7280", priority: 5 }
+            { id: "required", name: "Required", color: "#f97316", priority: 1, description: "Major requirements to protect first" },
+            { id: "high", name: "High Priority", color: "#3b82f6", priority: 2, description: "Strong preference if there is room" },
+            { id: "medium", name: "Medium Priority", color: "#eab308", priority: 3, description: "Useful options with tradeoffs" },
+            { id: "low", name: "Low Priority", color: "#22c55e", priority: 4, description: "Nice-to-have courses" },
+            { id: "backup", name: "Backup", color: "#6b7280", priority: 5, description: "Alternates for full or conflicting sections" }
         ],
         plannerSelection: [
             "cs-ua101-001", "cs-ua201-002", "cs-ua310-001",
-            "math-ua120-003", "core-ua400-001"
+            "math-ua120-003", "core-ua400-001", "psych-ua1-002",
+            "chem-ua125-001"
         ],
         professorRatings: {
             "Craig Kapp": 4.2, "Gustavo Sandoval": 3.8,
-            "Alan Siegel": 2.9, "William Easterly": 4.7, "Maria Pearson": 3.5
+            "Alan Siegel": 2.9, "William Easterly": 4.7,
+            "Maria Pearson": 3.5, "Elizabeth Phelps": 4.6,
+            "Marc Walters": 3.2, "Dennis Shasha": 4.1
         },
+        activeTerm: testTerm,
         settings: { showWeekends: false, startHour: 7, endHour: 22 }
     };
     window.__storageListeners = [];

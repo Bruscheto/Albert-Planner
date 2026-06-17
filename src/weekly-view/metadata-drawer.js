@@ -10,6 +10,8 @@ import { cancelInlineRename } from "./bucket-actions.js";
 
 export function closeCourseMetadataDrawer() {
 	state.activeMetadataCourseId = null;
+	state.activeMetadataComponentSection = null;
+	state.activeMetadataComponentType = null;
 	document.body.classList.remove("metadata-drawer-open");
 	dom.metadataDrawer?.setAttribute("aria-hidden", "true");
 }
@@ -66,12 +68,21 @@ export function renderCourseMetadataDrawer() {
 		return;
 	}
 
+	const focusComponent = state.activeMetadataComponentSection
+		? course.components?.find(
+				(component) =>
+					component.section === state.activeMetadataComponentSection &&
+					component.type === state.activeMetadataComponentType,
+			) || null
+		: null;
+
 	renderCourseMetadataContent({
 		container: dom.metadataDrawerBody,
 		course,
 		buckets: state.currentBuckets,
 		context: buildCourseContext(course),
 		ratings: state.cachedProfRatings,
+		focusComponent,
 		onBucketSelect: async (bucketId) => {
 			if ((course.bucket ?? null) === (bucketId ?? null)) {
 				return;
@@ -86,10 +97,12 @@ export function renderCourseMetadataDrawer() {
 	});
 }
 
-export function openCourseMetadataDrawer(courseId) {
+export function openCourseMetadataDrawer(courseId, focusComponent = null) {
 	if (!courseId) return;
 	cancelInlineRename();
 	state.activeMetadataCourseId = courseId;
+	state.activeMetadataComponentSection = focusComponent?.section ?? null;
+	state.activeMetadataComponentType = focusComponent?.type ?? null;
 	renderCourseMetadataDrawer();
 	if (!state.coursesById.has(courseId)) {
 		return;

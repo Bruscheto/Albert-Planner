@@ -46,6 +46,8 @@
 	--header-height: 56px;
 	--sidebar-width: 320px;
 	--time-column-width: 56px;
+	--day-column-min-width: 120px;
+	--calendar-days-min-width: 600px;
 
 	--glass-bg: rgba(255, 255, 255, 0.72);
 	--glass-border: rgba(255, 255, 255, 0.62);
@@ -272,31 +274,12 @@ h4 {
 	display: inline-flex;
 	align-items: center;
 	gap: 7px;
-	padding: 3px 10px 3px 8px;
+	padding: 3px 10px;
 	border-radius: 999px;
 	border: 1px solid var(--border-color);
 	background: var(--accent-softer);
 	font-family: var(--font-mono);
 	line-height: 1;
-}
-
-.header-stat-dot {
-	width: 6px;
-	height: 6px;
-	border-radius: 999px;
-	background: #34d399;
-	box-shadow: 0 0 0 3px rgba(52, 211, 153, 0.18);
-	animation: credits-pulse 2.4s ease-in-out infinite;
-}
-
-@keyframes credits-pulse {
-	0%,
-	100% {
-		box-shadow: 0 0 0 3px rgba(52, 211, 153, 0.15);
-	}
-	50% {
-		box-shadow: 0 0 0 4px rgba(52, 211, 153, 0.3);
-	}
 }
 
 .header-stat-label {
@@ -1446,8 +1429,9 @@ body.weekly-sidebar-collapsed .calendar-container {
 
 .calendar-grid {
 	display: grid;
-	grid-template-columns: var(--time-column-width) repeat(5, 1fr);
+	grid-template-columns: var(--time-column-width) repeat(5, minmax(var(--day-column-min-width), 1fr));
 	flex: 1;
+	min-width: calc(var(--time-column-width) + var(--calendar-days-min-width) + 18px);
 	min-height: 0;
 	overflow-y: hidden;
 	position: relative;
@@ -1557,7 +1541,7 @@ body.weekly-sidebar-collapsed .calendar-container {
 /* ── Day Columns ── */
 .day-column {
 	flex: 1;
-	min-width: 120px;
+	min-width: var(--day-column-min-width);
 	border-right: 1px solid rgba(87, 6, 140, 0.04);
 	background: rgba(255, 255, 255, 0.18);
 }
@@ -1634,11 +1618,12 @@ body.weekly-sidebar-collapsed .calendar-container {
 
 /* ── Now Indicator ── */
 .now-indicator {
+	--now-indicator-color: rgba(87, 6, 140, 0.35);
 	position: absolute;
 	left: var(--time-column-width);
 	right: 0;
 	height: 0;
-	border-top: 1.5px solid rgba(87, 6, 140, 0.35);
+	border-top: 1.5px solid var(--now-indicator-color);
 	pointer-events: none;
 	z-index: 4;
 	transform: translateY(-0.5px);
@@ -1650,17 +1635,19 @@ body.weekly-sidebar-collapsed .calendar-container {
 
 .now-indicator-dot {
 	position: absolute;
-	top: -3px;
+	top: -4.25px;
 	left: calc(
 		(100% / 5) * var(--today-col, 0) + (100% / 10) - 3px
 	);
 	width: 7px;
 	height: 7px;
 	border-radius: 999px;
-	background: rgba(87, 6, 140, 0.55);
+	background:
+		linear-gradient(var(--now-indicator-color), var(--now-indicator-color)),
+		var(--bg-color);
 	box-shadow:
 		0 0 0 2px var(--bg-color),
-		0 0 0 3px rgba(87, 6, 140, 0.35);
+		0 0 0 3px var(--now-indicator-color);
 }
 
 .now-indicator-pill {
@@ -2117,6 +2104,11 @@ body.metadata-drawer-open .course-metadata-drawer {
 
 /* ── Responsive ── */
 @media (max-width: 768px) {
+	:root {
+		--day-column-min-width: 80px;
+		--calendar-days-min-width: 400px;
+	}
+
 	.sidebar-toggle-handle {
 		left: calc(min(calc(100vw - 24px), var(--sidebar-width)) - 18px);
 	}
@@ -2131,10 +2123,6 @@ body.metadata-drawer-open .course-metadata-drawer {
 
 	.calendar-container {
 		margin-left: min(calc(100vw - 24px), var(--sidebar-width));
-	}
-
-	.day-column {
-		min-width: 80px;
 	}
 
 	.day-header {
