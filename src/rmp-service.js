@@ -152,7 +152,14 @@ query TeacherRatingCoursesQuery($id: ID!, $after: String) {
 			ratings(first: 100, after: $after) {
 				edges {
 					node {
+						id
 						class
+						comment
+						date
+						helpfulRating
+						clarityRating
+						difficultyRating
+						grade
 					}
 				}
 				pageInfo {
@@ -312,6 +319,55 @@ function findRatingCourseMatch(courseCode, ratingCourseLabels = []) {
 	return null;
 }
 
+function courseLabelMatchesCourseCode(courseCode, label) {
+	const courseKeys = getCourseMatchKeys(courseCode);
+	const labelKeys = getCourseMatchKeys(label);
+	if (!courseKeys.size || !labelKeys.size) {
+		return false;
+	}
+	return [...labelKeys].some((key) => courseKeys.has(key));
+}
+
+function normalizeRatingCourseLabel(rating) {
+	return String(rating?.class || rating?.classLabel || "").trim();
+}
+
+function normalizeRatingDate(value) {
+	const date = new Date(value);
+	return Number.isNaN(date.getTime()) ? 0 : date.getTime();
+}
+
+function normalizeSameCourseRating(rating) {
+	if (!rating) {
+		return null;
+	}
+
+	return {
+		id: rating.id || null,
+		classLabel: normalizeRatingCourseLabel(rating),
+		comment: typeof rating.comment === "string" ? rating.comment : "",
+		date: rating.date || null,
+		helpfulRating: rating.helpfulRating,
+		clarityRating: rating.clarityRating,
+		difficultyRating: rating.difficultyRating,
+		grade: rating.grade || "",
+	};
+}
+
+export function findMostRecentSameCourseRating(courseCode, ratings = []) {
+	if (!Array.isArray(ratings) || !getCourseMatchKeys(courseCode).size) {
+		return null;
+	}
+
+	const matchingRatings = ratings
+		.filter((rating) =>
+			courseLabelMatchesCourseCode(courseCode, normalizeRatingCourseLabel(rating)),
+		)
+		.sort((a, b) => normalizeRatingDate(b.date) - normalizeRatingDate(a.date));
+
+	return normalizeSameCourseRating(matchingRatings[0]);
+}
+
 function getCourseLookupContext({ course = null, courseCode = "", courseTitle = "" }) {
 	return {
 		courseCode:
@@ -393,6 +449,7 @@ function normalizeCandidate(professor) {
 		numRatings: professor.numRatings,
 		avgDifficulty: professor.avgDifficulty,
 		wouldTakeAgainPercent: professor.wouldTakeAgainPercent,
+		sameCourseRating: normalizeSameCourseRating(professor.sameCourseRating),
 		school: {
 			id: professor.school?.id || null,
 			name: professor.school?.name || null,
@@ -523,12 +580,12 @@ async function fetchNyuProfessorCandidates(professorName) {
 	return edges.map((edge) => edge?.node).filter(Boolean);
 }
 
-async function fetchTeacherRatingCourseLabels(teacherId) {
+async function fetchTeacherRatings(teacherId) {
 	if (!teacherId) {
 		return [];
 	}
 
-	const labels = new Set();
+	const ratings = [];
 	let after = null;
 
 	for (let pageCount = 0; pageCount < 3; pageCount += 1) {
@@ -555,21 +612,20 @@ async function fetchTeacherRatingCourseLabels(teacherId) {
 			throw new Error(payload.errors[0]?.message || "Rate My Professors error.");
 		}
 
-		const ratings = payload?.data?.node?.ratings;
-		for (const edge of ratings?.edges || []) {
-			const label = String(edge?.node?.class || "").trim();
-			if (label) {
-				labels.add(label);
+		const ratingConnection = payload?.data?.node?.ratings;
+		for (const edge of ratingConnection?.edges || []) {
+			if (edge?.node) {
+				ratings.push(edge.node);
 			}
 		}
 
-		if (!ratings?.pageInfo?.hasNextPage) {
+		if (!ratingConnection?.pageInfo?.hasNextPage) {
 			break;
 		}
-		after = ratings.pageInfo.endCursor;
+		after = ratingConnection.pageInfo.endCursor;
 	}
 
-	return [...labels];
+	return ratings;
 }
 
 function isNyuProfessor(professor) {
@@ -583,23 +639,64 @@ function hasExactLastName(professorName, professor) {
 	return getLastName(professorName) === getLastName(professorFullName(professor));
 }
 
-async function attachRatingCourseLabels(professorName, candidates) {
+async function attachRatingCourseData(professorName, candidates, courseCode) {
 	const hydratedCandidates = await Promise.all(
 		candidates.map(async (candidate) => {
 			if (!isNyuProfessor(candidate) || !hasExactLastName(professorName, candidate)) {
 				return candidate;
 			}
-			if (Array.isArray(candidate.ratingCourseLabels)) {
-				return candidate;
+			if (
+				Array.isArray(candidate.ratingCourseLabels) &&
+				Array.isArray(candidate.ratings)
+			) {
+				return {
+					...candidate,
+					sameCourseRating:
+						candidate.sameCourseRating ||
+						findMostRecentSameCourseRating(courseCode, candidate.ratings),
+				};
 			}
+			const ratings = await fetchTeacherRatings(candidate.id);
+			const ratingCourseLabels = [
+				...new Set(
+					ratings.map(normalizeRatingCourseLabel).filter((label) => label),
+				),
+			];
 			return {
 				...candidate,
-				ratingCourseLabels: await fetchTeacherRatingCourseLabels(candidate.id),
+				ratings,
+				ratingCourseLabels,
+				sameCourseRating: findMostRecentSameCourseRating(courseCode, ratings),
 			};
 		}),
 	);
 
 	return hydratedCandidates;
+}
+
+async function attachSameCourseRatingToMatch(match, courseCode) {
+	if (match.status !== "matched" || !match.professor?.id) {
+		return match;
+	}
+
+	if (match.professor.sameCourseRating) {
+		return match;
+	}
+
+	const ratings = await fetchTeacherRatings(match.professor.id);
+	const sameCourseRating = findMostRecentSameCourseRating(courseCode, ratings);
+	return {
+		...match,
+		professor: {
+			...match.professor,
+			sameCourseRating,
+		},
+		candidates: match.candidates.map((candidate) =>
+			candidate.id === match.professor.id
+				? { ...candidate, sameCourseRating }
+				: candidate,
+		),
+	};
 }
 
 export async function searchNyuProfessorMatch({
@@ -616,20 +713,32 @@ export async function searchNyuProfessorMatch({
 		candidates,
 	});
 
-	if (
-		initialMatch.status !== "ambiguous" ||
-		!getCourseMatchKeys(courseContext.courseCode).size
-	) {
+	if (!getCourseMatchKeys(courseContext.courseCode).size) {
 		return initialMatch;
 	}
 
-	const candidatesWithRatingCourses = await attachRatingCourseLabels(
+	if (initialMatch.status === "matched") {
+		return attachSameCourseRatingToMatch(
+			initialMatch,
+			courseContext.courseCode,
+		);
+	}
+
+	if (initialMatch.status !== "ambiguous") {
+		return initialMatch;
+	}
+
+	const candidatesWithRatingCourses = await attachRatingCourseData(
 		professorName,
 		candidates,
+		courseContext.courseCode,
 	);
-	return resolveNyuProfessorMatch({
+	const hydratedMatch = resolveNyuProfessorMatch({
 		professorName,
 		...courseContext,
 		candidates: candidatesWithRatingCourses,
 	});
+	return hydratedMatch.status === "matched"
+		? attachSameCourseRatingToMatch(hydratedMatch, courseContext.courseCode)
+		: hydratedMatch;
 }

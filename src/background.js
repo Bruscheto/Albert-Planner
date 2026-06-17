@@ -13,6 +13,7 @@ const PANEL_PATH = "src/popup.html?mode=sidepanel";
 const WEEKLY_VIEW_PATH = "src/weekly-view.html";
 const ALLOWED_SIDE_PANEL_HOSTS = ["sis.portal.nyu.edu", "sis.nyu.edu"];
 const RMP_PROFESSOR_CACHE_KEY = "rmpProfessorCache";
+const RMP_CACHE_VERSION = "rmp:v3";
 const RMP_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 const hasSidePanelApi = Boolean(chrome.sidePanel);
 
@@ -109,27 +110,24 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 				});
 			return true; // Keep channel open for async response
 
+		case "LOOKUP_RMP_PROFESSOR":
+			handleLookupRmpProfessor(message)
+				.then((result) => sendResponse(result))
+				.catch((error) => {
+					console.error("[Albert Enhancer] Failed to lookup RMP professor:", error);
+					sendResponse({
+						success: false,
+						status: "error",
+						data: null,
+						candidates: [],
+						error: error.message || "Unable to lookup professor rating.",
+					});
+				});
+			return true;
+
 		default:
 			console.log("[Albert Enhancer] Unknown message type:", message.type);
 	}
-});
-
-// Courses are saved directly to storage by the popup/weekly view, so enrich
-// ratings whenever the stored course list changes (any save path).
-chrome.storage.onChanged.addListener((changes, namespace) => {
-	if (namespace !== "local" || !changes.courses) {
-		return;
-	}
-	const courses = changes.courses.newValue;
-	if (!Array.isArray(courses) || courses.length === 0) {
-		return;
-	}
-	enrichProfessorRatingsFromCourses(courses).catch((error) => {
-		console.error(
-			"[Albert Enhancer] Failed to enrich professor ratings:",
-			error,
-		);
-	});
 });
 
 if (hasSidePanelApi) {
@@ -204,22 +202,37 @@ async function writeCachedRmpProfessor(cacheKey, value) {
 	});
 }
 
+function getRmpCourseContext({ course, courseCode, courseTitle }) {
+	return {
+		courseCode:
+			typeof course?.courseCode === "string" ? course.courseCode : courseCode || "",
+		courseTitle:
+			typeof course?.title === "string" ? course.title : courseTitle || "",
+	};
+}
+
 function buildRmpCacheKey({ professorName, courseCode = "" }) {
-	return [normalizeProfessorName(professorName).toLowerCase(), courseCode || ""]
+	return [RMP_CACHE_VERSION, normalizeProfessorName(professorName).toLowerCase(), courseCode || ""]
 		.filter(Boolean)
 		.join("|");
 }
 
 // Resolve an RMP match through the shared cache, falling back to a live search.
-async function resolveRmpMatch({ professorName, courseCode = "", courseTitle = "" }) {
+async function resolveRmpMatch({
+	professorName,
+	course,
+	courseCode = "",
+	courseTitle = "",
+}) {
 	const normalizedName = normalizeProfessorName(professorName);
 	if (!normalizedName) {
 		return null;
 	}
+	const courseContext = getRmpCourseContext({ course, courseCode, courseTitle });
 
 	const cacheKey = buildRmpCacheKey({
 		professorName: normalizedName,
-		courseCode,
+		courseCode: courseContext.courseCode,
 	});
 	const cached = await readCachedRmpProfessor(cacheKey);
 	if (cached.hit) {
@@ -228,8 +241,7 @@ async function resolveRmpMatch({ professorName, courseCode = "", courseTitle = "
 
 	const match = await searchNyuProfessorMatch({
 		professorName: normalizedName,
-		courseCode,
-		courseTitle,
+		...courseContext,
 	});
 	await writeCachedRmpProfessor(cacheKey, match);
 	return match;
@@ -239,8 +251,37 @@ function isRealInstructor(name) {
 	return isNonEmptyString(name) && !INSTRUCTOR_TBA_PATTERN.test(name.trim());
 }
 
-// Map each distinct instructor to the first course that names them, so the
-// course code/title can disambiguate professors who share a last name.
+async function handleLookupRmpProfessor(message) {
+	const professorName = normalizeProfessorName(message.professorName);
+	if (!isRealInstructor(professorName)) {
+		return {
+			success: false,
+			status: "not_found",
+			data: null,
+			candidates: [],
+			error: "Professor name is required.",
+		};
+	}
+
+	const match = await resolveRmpMatch({
+		professorName,
+		course: message.course,
+		courseCode: message.courseCode,
+		courseTitle: message.courseTitle,
+	});
+
+	return {
+		success: match?.status === "matched",
+		status: match?.status || "not_found",
+		data: match?.professor || null,
+		candidates: match?.status === "ambiguous" ? [] : match?.candidates || [],
+		error:
+			match?.status === "matched"
+				? null
+				: `No confident NYU RMP match found for ${professorName}.`,
+	};
+}
+
 function collectInstructorLookups(courses) {
 	const lookups = new Map();
 	for (const course of courses) {
@@ -251,8 +292,7 @@ function collectInstructorLookups(courses) {
 			}
 			lookups.set(name, {
 				professorName: name,
-				courseCode:
-					typeof course.courseCode === "string" ? course.courseCode : "",
+				courseCode: typeof course.courseCode === "string" ? course.courseCode : "",
 				courseTitle: typeof course.title === "string" ? course.title : "",
 			});
 		}
@@ -262,52 +302,40 @@ function collectInstructorLookups(courses) {
 
 async function enrichProfessorRatingsFromCourses(courses) {
 	const lookups = collectInstructorLookups(courses);
-	if (lookups.size === 0) {
-		return;
-	}
+	if (lookups.size === 0) return;
 
 	const existingRatings = await getProfessorRatings();
 	const resolvedRatings = {};
 
 	for (const [name, context] of lookups) {
-		// Never overwrite a manually entered or previously resolved rating.
-		if (existingRatings[name] != null) {
-			continue;
-		}
+		if (existingRatings[name] != null) continue;
 		try {
 			const match = await resolveRmpMatch(context);
 			const avgRating = Number(match?.professor?.avgRating);
-			if (
-				match?.status === "matched" &&
-				Number.isFinite(avgRating) &&
-				avgRating > 0
-			) {
+			if (match?.status === "matched" && Number.isFinite(avgRating) && avgRating > 0) {
 				resolvedRatings[name] = avgRating;
 			}
 		} catch (error) {
-			console.error(
-				"[Albert Enhancer] RMP rating lookup failed for",
-				name,
-				error,
-			);
+			console.error("[Albert Enhancer] RMP rating lookup failed for", name, error);
 		}
 	}
 
-	if (Object.keys(resolvedRatings).length === 0) {
-		return;
-	}
+	if (Object.keys(resolvedRatings).length === 0) return;
 
-	// Re-read before writing so concurrent edits (manual ratings) win.
 	const latestRatings = await getProfessorRatings();
 	await chrome.storage.local.set({
 		[STORAGE_KEYS.PROFESSOR_RATINGS]: { ...resolvedRatings, ...latestRatings },
 	});
-	console.log(
-		"[Albert Enhancer] Stored",
-		Object.keys(resolvedRatings).length,
-		"professor ratings from RMP",
-	);
 }
+
+chrome.storage.onChanged.addListener((changes, namespace) => {
+	if (namespace !== "local" || !changes.courses) return;
+	const courses = changes.courses.newValue;
+	if (!Array.isArray(courses) || courses.length === 0) return;
+	enrichProfessorRatingsFromCourses(courses).catch((error) => {
+		console.error("[Albert Enhancer] Failed to enrich professor ratings:", error);
+	});
+});
 
 async function openPlannerPage() {
 	await chrome.tabs.create({

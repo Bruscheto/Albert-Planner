@@ -25,9 +25,9 @@ function getInstructors(course) {
 	return names;
 }
 
-function rmpSearchUrl(professorName) {
-	return `https://www.google.com/search?q=${encodeURIComponent(`ratemyprofessors ${professorName} NYU`)}`;
-}
+const rmpInsightCache = new Map();
+const OPEN_DELAY_MS = 120;
+const CLOSE_DELAY_MS = 200;
 
 export function ratingTier(val) {
 	if (val >= 4) return "good";
@@ -148,6 +148,290 @@ function createBucketOption(bucket, isActive, onBucketSelect) {
 	return button;
 }
 
+function formatMetric(value, digits = 1) {
+	const num = Number(value);
+	if (!Number.isFinite(num) || num < 0) {
+		return "n/a";
+	}
+	return num.toFixed(digits);
+}
+
+function formatPercent(value) {
+	const num = Number(value);
+	if (!Number.isFinite(num) || num < 0) {
+		return "n/a";
+	}
+	return `${num.toFixed(0)}%`;
+}
+
+function formatReviewDate(value) {
+	const date = new Date(value);
+	if (Number.isNaN(date.getTime())) {
+		return "";
+	}
+	return date.toLocaleDateString(undefined, {
+		month: "short",
+		day: "numeric",
+		year: "numeric",
+	});
+}
+
+function getRmpCacheKey(professorName, course) {
+	return [
+		professorName.trim().toLowerCase(),
+		course?.id || "",
+		course?.courseCode || "",
+	]
+		.filter(Boolean)
+		.join("|");
+}
+
+async function lookupRmpProfessor(professorName, course) {
+	const key = getRmpCacheKey(professorName, course);
+	if (!rmpInsightCache.has(key)) {
+		rmpInsightCache.set(
+			key,
+			chrome.runtime.sendMessage({
+				type: "LOOKUP_RMP_PROFESSOR",
+				professorName,
+				course,
+			}),
+		);
+	}
+	return rmpInsightCache.get(key);
+}
+
+function renderInsightLoading(panel, professorName) {
+	panel.innerHTML = "";
+	const status = document.createElement("div");
+	status.className = "metadata-prof-insight-status";
+	status.textContent = `Looking up ${professorName}`;
+	panel.appendChild(status);
+}
+
+function renderInsightNotFound(panel) {
+	panel.innerHTML = "";
+	const status = document.createElement("div");
+	status.className = "metadata-prof-insight-status";
+	status.textContent = "RMP match not found";
+	const helper = document.createElement("div");
+	helper.className = "metadata-prof-insight-helper";
+	helper.textContent = "Use the local rating badge if you want to track this professor.";
+	panel.append(status, helper);
+}
+
+function createInsightStat(label, value) {
+	const stat = document.createElement("div");
+	stat.className = "metadata-prof-insight-stat";
+	const valueEl = document.createElement("div");
+	valueEl.className = "metadata-prof-insight-stat-value";
+	valueEl.textContent = value;
+	const labelEl = document.createElement("div");
+	labelEl.className = "metadata-prof-insight-stat-label";
+	labelEl.textContent = label;
+	stat.append(valueEl, labelEl);
+	return stat;
+}
+
+function renderInsightMatched(panel, professor, course) {
+	panel.innerHTML = "";
+
+	const header = document.createElement("div");
+	header.className = "metadata-prof-insight-header";
+
+	const identity = document.createElement("div");
+	const name = document.createElement("div");
+	name.className = "metadata-prof-insight-name";
+	name.textContent = professor.name || "Professor";
+	const source = document.createElement("div");
+	source.className = "metadata-prof-insight-source";
+	source.textContent = "Rate My Professors · NYU";
+	identity.append(name, source);
+
+	const score = document.createElement("div");
+	score.className = `metadata-prof-insight-score rating-${ratingTier(Number(professor.avgRating) || 0)}`;
+	score.textContent = formatMetric(professor.avgRating);
+
+	header.append(identity, score);
+
+	const stats = document.createElement("div");
+	stats.className = "metadata-prof-insight-stats";
+	stats.append(
+		createInsightStat("Difficulty", formatMetric(professor.avgDifficulty)),
+		createInsightStat("Would take again", formatPercent(professor.wouldTakeAgainPercent)),
+		createInsightStat("Ratings", formatMetric(professor.numRatings, 0)),
+	);
+
+	const review = document.createElement("div");
+	review.className = "metadata-prof-insight-review";
+	const reviewTitle = document.createElement("div");
+	reviewTitle.className = "metadata-prof-insight-review-title";
+	reviewTitle.textContent = `Latest for ${course?.courseCode || "this course"}`;
+	review.appendChild(reviewTitle);
+
+	const sameCourseRating = professor.sameCourseRating;
+	if (sameCourseRating?.comment) {
+		const metaParts = [
+			formatReviewDate(sameCourseRating.date),
+			sameCourseRating.grade ? `Grade ${sameCourseRating.grade}` : "",
+			Number.isFinite(Number(sameCourseRating.difficultyRating))
+				? `Difficulty ${formatMetric(sameCourseRating.difficultyRating)}`
+				: "",
+		].filter(Boolean);
+
+		const meta = document.createElement("div");
+		meta.className = "metadata-prof-insight-review-meta";
+		meta.textContent = metaParts.join(" · ");
+
+		const comment = document.createElement("blockquote");
+		comment.className = "metadata-prof-insight-comment";
+		comment.textContent = sameCourseRating.comment.trim();
+		review.append(meta, comment);
+	} else {
+		const empty = document.createElement("div");
+		empty.className = "metadata-prof-insight-helper";
+		empty.textContent = "No same-course comment found.";
+		review.appendChild(empty);
+	}
+
+	panel.append(header, stats, review);
+}
+
+function makeDotNumber(text) {
+	const dot = document.createElement("span");
+	dot.className = "metadata-prof-rating-dot";
+	return [dot, document.createTextNode(text)];
+}
+
+function updateRmpBadge(badge, result, manualRating) {
+	badge.classList.remove("has-value", "rating-good", "rating-mid", "rating-low");
+	badge.replaceChildren();
+
+	const rmpRating = Number(result?.data?.avgRating);
+	if (result?.status === "matched" && Number.isFinite(rmpRating) && rmpRating > 0) {
+		badge.classList.add("has-value", `rating-${ratingTier(rmpRating)}`);
+		badge.replaceChildren(...makeDotNumber(rmpRating.toFixed(1)));
+		badge.title = "RMP rating";
+		badge.dataset.source = "rmp";
+		return;
+	}
+
+	if (manualRating != null) {
+		const num = Number(manualRating);
+		badge.classList.add("has-value", `rating-${ratingTier(num)}`);
+		badge.replaceChildren(...makeDotNumber(num.toFixed(1)));
+		badge.title = `Local rating: ${manualRating}/5 - click to edit`;
+	} else {
+		badge.textContent = "~";
+		badge.title = "Add local rating";
+	}
+	badge.dataset.source = "local";
+}
+
+function renderRmpInsightPanel(panel, result, course) {
+	if (result?.status === "matched" && result.data) {
+		renderInsightMatched(panel, result.data, course);
+		return;
+	}
+	renderInsightNotFound(panel);
+}
+
+function createProfessorInsightEntry({ professorName, course, manualRating }) {
+	const entry = document.createElement("span");
+	entry.className = "metadata-instructor-entry";
+
+	const trigger = document.createElement("button");
+	trigger.type = "button";
+	trigger.className = "metadata-instructor-trigger";
+	trigger.textContent = professorName;
+	trigger.setAttribute("aria-haspopup", "dialog");
+	trigger.setAttribute("aria-expanded", "false");
+
+	const badge = document.createElement("span");
+	badge.className = "metadata-prof-rating";
+	updateRmpBadge(badge, null, manualRating);
+	badge.addEventListener("click", (event) => {
+		if (badge.dataset.source === "rmp") {
+			return;
+		}
+		event.stopPropagation();
+		showRatingInput(badge, professorName, manualRating);
+	});
+
+	const panelWrapper = document.createElement("div");
+	panelWrapper.className = "metadata-prof-insight-wrapper";
+
+	const panel = document.createElement("div");
+	panel.className = "metadata-prof-insight";
+	panel.setAttribute("role", "dialog");
+	panel.setAttribute("aria-label", `${professorName} RMP details`);
+	renderInsightLoading(panel, professorName);
+	panelWrapper.appendChild(panel);
+
+	let openTimer = null;
+	let closeTimer = null;
+	let hasLoaded = false;
+
+	const cancelClose = () => {
+		clearTimeout(closeTimer);
+	};
+
+	const openPanel = () => {
+		cancelClose();
+		clearTimeout(openTimer);
+		openTimer = setTimeout(async () => {
+			entry.classList.add("is-open");
+			trigger.setAttribute("aria-expanded", "true");
+			if (hasLoaded) {
+				return;
+			}
+			hasLoaded = true;
+			renderInsightLoading(panel, professorName);
+			try {
+				const result = await lookupRmpProfessor(professorName, course);
+				renderRmpInsightPanel(panel, result, course);
+			} catch (error) {
+				console.error("[Albert Enhancer] RMP insight lookup failed:", error);
+				renderInsightNotFound(panel);
+			}
+		}, OPEN_DELAY_MS);
+	};
+
+	const closePanel = () => {
+		clearTimeout(openTimer);
+		closeTimer = setTimeout(() => {
+			if (entry.matches(":hover") || panelWrapper.matches(":hover")) {
+				return;
+			}
+			entry.classList.remove("is-open");
+			trigger.setAttribute("aria-expanded", "false");
+		}, CLOSE_DELAY_MS);
+	};
+
+	entry.addEventListener("pointerenter", cancelClose);
+	trigger.addEventListener("pointerenter", openPanel);
+	entry.addEventListener("pointerleave", closePanel);
+	panelWrapper.addEventListener("pointerenter", cancelClose);
+	panelWrapper.addEventListener("pointerleave", closePanel);
+	trigger.addEventListener("focus", openPanel);
+	entry.addEventListener("focusout", (event) => {
+		if (!entry.contains(event.relatedTarget)) {
+			closePanel();
+		}
+	});
+	trigger.addEventListener("click", (event) => {
+		event.preventDefault();
+		if (entry.classList.contains("is-open")) {
+			closePanel();
+		} else {
+			openPanel();
+		}
+	});
+
+	entry.append(trigger, badge, panelWrapper);
+	return entry;
+}
+
 function showRatingInput(badge, profName, currentVal) {
 	if (badge.querySelector("input")) return;
 
@@ -185,7 +469,7 @@ function showRatingInput(badge, profName, currentVal) {
 			const val = Math.min(5, Math.max(0, parseFloat(raw) || 0));
 			await setProfessorRating(profName, val);
 			badge.classList.add("has-value", `rating-${ratingTier(val)}`);
-			badge.textContent = val.toFixed(1);
+			badge.replaceChildren(...makeDotNumber(val.toFixed(1)));
 			badge.title = `Rating: ${val}/5 — click to edit`;
 		}
 		badge.style.width = "";
@@ -267,41 +551,14 @@ export function renderCourseMetadataContent({
 	if (instructors.length > 0) {
 		const instructorLine = document.createElement("div");
 		instructorLine.className = "metadata-instructor-line";
-		for (let i = 0; i < instructors.length; i++) {
-			if (i > 0) {
-				instructorLine.appendChild(document.createTextNode(", "));
-			}
-			const entry = document.createElement("span");
-			entry.className = "metadata-instructor-entry";
-
-			const link = document.createElement("a");
-			link.className = "metadata-instructor-link";
-			link.href = rmpSearchUrl(instructors[i]);
-			link.target = "_blank";
-			link.rel = "noopener noreferrer";
-			link.textContent = instructors[i];
-			link.title = `Search ${instructors[i]} on Rate My Professors`;
-			entry.appendChild(link);
-
-			const ratingVal = ratings[instructors[i]];
-			const badge = document.createElement("span");
-			badge.className = "metadata-prof-rating";
-			if (ratingVal != null) {
-				const num = Number(ratingVal);
-				badge.classList.add("has-value", `rating-${ratingTier(num)}`);
-				badge.textContent = num.toFixed(1);
-				badge.title = `Rating: ${ratingVal}/5 — click to edit`;
-			} else {
-				badge.textContent = "~";
-				badge.title = "Add rating";
-			}
-			badge.addEventListener("click", (e) => {
-				e.stopPropagation();
-				showRatingInput(badge, instructors[i], ratingVal);
-			});
-			entry.appendChild(badge);
-
-			instructorLine.appendChild(entry);
+		for (const instructor of instructors) {
+			instructorLine.appendChild(
+				createProfessorInsightEntry({
+					professorName: instructor,
+					course,
+					manualRating: ratings[instructor],
+				}),
+			);
 		}
 		summary.appendChild(instructorLine);
 	}

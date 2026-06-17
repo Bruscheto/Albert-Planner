@@ -150,7 +150,7 @@
 	function closeCourseMetadataDrawer() {
 		activeMetadataCourseId = null;
 		document.body.classList.remove("metadata-drawer-open");
-		metadataDrawer?.setAttribute("aria-hidden", "true");
+		metadataDrawer?.setAttribute("inert", "");
 		if (metadataDrawerTitle) {
 			metadataDrawerTitle.textContent = "Course Metadata";
 		}
@@ -194,7 +194,7 @@
 			return;
 		}
 		document.body.classList.add("metadata-drawer-open");
-		metadataDrawer?.setAttribute("aria-hidden", "false");
+		metadataDrawer?.removeAttribute("inert");
 		// Scroll to top so the drawer is visible
 		document.querySelector(".scrollable-content")?.scrollTo(0, 0);
 		document.documentElement.scrollTop = 0;

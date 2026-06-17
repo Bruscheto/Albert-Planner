@@ -13,7 +13,7 @@ export function closeCourseMetadataDrawer() {
 	state.activeMetadataComponentSection = null;
 	state.activeMetadataComponentType = null;
 	document.body.classList.remove("metadata-drawer-open");
-	dom.metadataDrawer?.setAttribute("aria-hidden", "true");
+	dom.metadataDrawer?.setAttribute("inert", "");
 }
 
 function buildCourseContext(course) {
@@ -108,5 +108,5 @@ export function openCourseMetadataDrawer(courseId, focusComponent = null) {
 		return;
 	}
 	document.body.classList.add("metadata-drawer-open");
-	dom.metadataDrawer?.setAttribute("aria-hidden", "false");
+	dom.metadataDrawer?.removeAttribute("inert");
 }

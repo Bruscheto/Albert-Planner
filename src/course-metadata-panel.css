@@ -91,82 +91,88 @@
 
 /* ── Instructor ── */
 .metadata-instructor-line {
-	font-size: 13px;
-	line-height: 1.5;
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 5px;
 	margin-top: 2px;
 }
 
-.metadata-instructor-link {
-	color: var(--nyu-purple);
-	text-decoration: none;
+.metadata-instructor-trigger {
+	border: 0;
+	padding: 0;
+	background: transparent;
+	color: var(--text-primary);
+	font: inherit;
+	font-size: 13px;
+	line-height: 1.5;
 	font-weight: 500;
-	margin-right: 3px;
-	transition: color 0.12s;
+	text-align: left;
+	cursor: pointer;
+	text-decoration: underline;
+	text-decoration-style: dotted;
+	text-decoration-color: rgba(87, 6, 140, 0.3);
+	text-underline-offset: 3px;
+	transition: color 0.12s ease, text-decoration-color 0.12s ease;
 }
 
-.metadata-instructor-link:hover {
-	color: var(--nyu-purple-hover);
-	text-decoration: underline;
+.metadata-instructor-trigger:hover,
+.metadata-instructor-trigger:focus-visible {
+	color: var(--nyu-purple);
+	text-decoration-color: var(--nyu-purple);
+	outline: none;
 }
 
 /* ── Professor Rating ── */
 .metadata-instructor-entry {
+	position: relative;
 	display: inline-flex;
 	align-items: center;
-	gap: 4px;
+	gap: 10px;
+	max-width: 100%;
 }
 
 .metadata-prof-rating {
 	display: inline-flex;
 	align-items: center;
-	justify-content: center;
-	min-width: 22px;
-	height: 20px;
-	padding: 0 6px;
-	border: 1px solid transparent;
-	border-radius: 999px;
+	gap: 6px;
 	font-family: var(--font-mono);
-	font-size: 10px;
-	font-weight: 500;
-	letter-spacing: 0.04em;
+	font-size: 12px;
+	font-weight: 600;
+	letter-spacing: 0.02em;
 	font-variant-numeric: tabular-nums;
 	cursor: pointer;
-	transition:
-		background 0.12s,
-		border-color 0.12s,
-		color 0.12s;
-	color: var(--text-secondary);
+	color: var(--text-muted);
 	background: transparent;
-	border-color: var(--border-color);
+	border: none;
+	padding: 0;
 	user-select: none;
 	vertical-align: middle;
+	transition: color 0.12s ease;
 }
 
-.metadata-prof-rating.has-value {
-	font-weight: 700;
+.metadata-prof-rating-dot {
+	width: 5px;
+	height: 5px;
+	border-radius: 999px;
+	background: currentColor;
+	flex-shrink: 0;
 }
 
-.metadata-prof-rating.rating-good {
-	color: #047857;
-	border-color: rgba(16, 185, 129, 0.35);
-	background: rgba(16, 185, 129, 0.06);
+.metadata-prof-rating[data-source="rmp"] {
+	cursor: default;
 }
 
-.metadata-prof-rating.rating-mid {
-	color: #b45309;
-	border-color: rgba(245, 158, 11, 0.35);
-	background: rgba(245, 158, 11, 0.06);
-}
+.metadata-prof-rating.rating-good { color: #0f766e; }
+.metadata-prof-rating.rating-mid  { color: #a16207; }
+.metadata-prof-rating.rating-low  { color: #be123c; }
 
-.metadata-prof-rating.rating-low {
-	color: #b91c1c;
-	border-color: rgba(239, 68, 68, 0.35);
-	background: rgba(239, 68, 68, 0.06);
-}
-
-.metadata-prof-rating:hover {
-	border-color: rgba(87, 6, 140, 0.3);
+.metadata-prof-rating:not([data-source="rmp"]):hover {
 	color: var(--nyu-purple);
+}
+
+.metadata-prof-rating:has(.metadata-prof-rating-input) {
+	color: var(--text-primary);
 }
 
 .metadata-prof-rating:has(.metadata-prof-rating-input) {
@@ -201,6 +207,222 @@
 .metadata-prof-rating-input::-webkit-outer-spin-button {
 	-webkit-appearance: none;
 	margin: 0;
+}
+
+.metadata-prof-insight-wrapper {
+	position: absolute;
+	top: calc(100% + 8px);
+	left: 0;
+	z-index: 240;
+	width: min(360px, calc(100vw - 48px));
+	display: grid;
+	grid-template-rows: 0fr;
+	visibility: hidden;
+	pointer-events: none;
+	transition:
+		grid-template-rows 0.26s cubic-bezier(0.4, 0, 0.2, 1),
+		visibility 0s linear 0.26s;
+}
+
+.metadata-prof-insight-wrapper::before {
+	content: "";
+	position: absolute;
+	left: 0;
+	right: 0;
+	top: -10px;
+	height: 10px;
+}
+
+.metadata-instructor-entry.is-open .metadata-prof-insight-wrapper {
+	grid-template-rows: 1fr;
+	visibility: visible;
+	pointer-events: auto;
+	transition:
+		grid-template-rows 0.26s cubic-bezier(0.4, 0, 0.2, 1),
+		visibility 0s linear 0s;
+}
+
+.metadata-prof-insight {
+	min-height: 0;
+	overflow: hidden;
+	padding: 14px 14px 20px;
+	border: 1px solid var(--border-color);
+	border-radius: 10px;
+	background:
+		linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(248, 249, 251, 0.98)),
+		var(--card-bg-solid);
+	box-shadow: var(--shadow-lg);
+	opacity: 0;
+	transition: opacity 0.2s ease 0.06s;
+}
+
+.metadata-instructor-entry.is-open .metadata-prof-insight {
+	opacity: 1;
+	transition: opacity 0.18s ease;
+}
+
+.metadata-prof-insight-header {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 16px;
+	padding-bottom: 11px;
+	border-bottom: 1px solid var(--border-color);
+}
+
+.metadata-prof-insight-name {
+	font-family: var(--font-display);
+	font-size: 15px;
+	line-height: 1.2;
+	font-weight: 600;
+	letter-spacing: -0.02em;
+	color: var(--text-primary);
+}
+
+.metadata-prof-insight-source,
+.metadata-prof-insight-stat-label,
+.metadata-prof-insight-review-title,
+.metadata-prof-insight-review-meta,
+.metadata-prof-insight-helper,
+.metadata-prof-insight-status {
+	font-family: var(--font-mono);
+}
+
+.metadata-prof-insight-source {
+	margin-top: 3px;
+	font-size: 10px;
+	line-height: 1.4;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	color: var(--text-muted);
+}
+
+.metadata-prof-insight-score {
+	min-width: 48px;
+	text-align: right;
+	font-family: var(--font-mono);
+	font-size: 28px;
+	line-height: 1;
+	font-weight: 700;
+	font-variant-numeric: tabular-nums;
+	color: var(--text-primary);
+}
+
+.metadata-prof-insight-score.rating-good {
+	color: #047857;
+}
+
+.metadata-prof-insight-score.rating-mid {
+	color: #b45309;
+}
+
+.metadata-prof-insight-score.rating-low {
+	color: #b91c1c;
+}
+
+.metadata-prof-insight-stats {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 8px;
+	padding: 12px 0;
+	border-bottom: 1px solid var(--border-color);
+}
+
+.metadata-prof-insight-stat {
+	min-width: 0;
+}
+
+.metadata-prof-insight-stat-value {
+	font-family: var(--font-mono);
+	font-size: 13px;
+	line-height: 1.2;
+	font-weight: 700;
+	color: var(--text-primary);
+	font-variant-numeric: tabular-nums;
+}
+
+.metadata-prof-insight-stat-label {
+	margin-top: 3px;
+	font-size: 9px;
+	line-height: 1.25;
+	letter-spacing: 0.07em;
+	text-transform: uppercase;
+	color: var(--text-muted);
+}
+
+.metadata-prof-insight-review {
+	padding-top: 12px;
+}
+
+.metadata-prof-insight-review-title {
+	font-size: 10px;
+	line-height: 1.35;
+	font-weight: 700;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	color: var(--nyu-purple);
+}
+
+.metadata-prof-insight-review-meta {
+	margin-top: 5px;
+	font-size: 10px;
+	line-height: 1.45;
+	color: var(--text-secondary);
+}
+
+.metadata-prof-insight-comment {
+	position: relative;
+	margin: 10px 0 0;
+	padding: 0 18px 0 26px;
+	font-size: 12px;
+	line-height: 1.55;
+	color: var(--text-primary);
+	white-space: normal;
+	overflow-wrap: anywhere;
+}
+
+.metadata-prof-insight-comment::before,
+.metadata-prof-insight-comment::after {
+	position: absolute;
+	font-family: var(--font-display);
+	font-size: 28px;
+	line-height: 1;
+	font-weight: 600;
+	color: var(--nyu-purple);
+	opacity: 0.34;
+	pointer-events: none;
+}
+
+.metadata-prof-insight-comment::before {
+	content: "\201C";
+	top: -4px;
+	left: 0;
+}
+
+.metadata-prof-insight-comment::after {
+	content: "\201D";
+	right: 0;
+	bottom: -16px;
+}
+
+.metadata-prof-insight-status {
+	font-size: 11px;
+	line-height: 1.45;
+	font-weight: 600;
+	color: var(--text-primary);
+}
+
+.metadata-prof-insight-helper {
+	margin-top: 5px;
+	font-size: 10px;
+	line-height: 1.45;
+	color: var(--text-secondary);
+}
+
+@media (max-width: 460px) {
+	.metadata-prof-insight-wrapper {
+		width: min(320px, calc(100vw - 32px));
+	}
 }
 
 /* ── Status Tags ── */
@@ -349,7 +571,8 @@
 }
 
 .metadata-bucket-option.is-active .metadata-bucket-dot {
-	box-shadow: 0 0 0 3px rgba(87, 6, 140, 0.08);
+	box-shadow: 0 0 0 2px rgba(87, 6, 140, 0.08);
+	opacity: 0.85;
 }
 
 .metadata-bucket-copy {
@@ -378,7 +601,7 @@
 	width: 16px;
 	height: 16px;
 	border-radius: 999px;
-	border: 2px solid rgba(87, 6, 140, 0.22);
+	border: 1.2px solid rgba(87, 6, 140, 0.22);
 	flex-shrink: 0;
 	display: flex;
 	align-items: center;
@@ -395,8 +618,8 @@
 
 .metadata-bucket-indicator::after {
 	content: "";
-	width: 7px;
-	height: 7px;
+	width: 12px;
+	height: 12px;
 	border-radius: 999px;
 	background: white;
 	opacity: 0;
@@ -418,6 +641,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+	.metadata-prof-insight-wrapper,
+	.metadata-prof-insight,
 	.metadata-bucket-option,
 	.metadata-bucket-option .metadata-bucket-name,
 	.metadata-bucket-dot,
