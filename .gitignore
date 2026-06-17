@@ -43,7 +43,8 @@ out/
 
 # Local tool state
 .worktrees/
-.test-harness/
 .claude/CLAUDE.md
 AGENTS.md
 /plan
+test-harness.html
+/test
