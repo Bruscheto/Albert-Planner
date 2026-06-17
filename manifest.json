@@ -2,7 +2,7 @@
 	"manifest_version": 3,
 	"name": "Albert Planner",
 	"version": "1.1",
-	"description": "Plan your NYU Albert schedule — scrapes your shopping cart into a weekly calendar with conflict detection and priority buckets.",
+	"description": "Turn your Albert shopping cart into a weekly calendar with professor ratings and conflict detection.",
 	"permissions": [
 		"storage",
 		"activeTab",
