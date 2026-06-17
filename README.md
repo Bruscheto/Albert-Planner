@@ -5,9 +5,10 @@ A Chrome extension that enhances NYU's Albert course registration. Scrapes your 
 ## What it does
 
 - **Reads your shopping cart** — auto-parses courses, times, instructors, rooms, credits from Albert's DOM
+- **Professor ratings** — auto-fetches Rate My Professors scores for your instructors and shows them in the calendar and course panel. Matches the right NYU professor by name, course code, and title (handles same-last-name ambiguity), and caches results so it isn't hammering RMP. Manual overrides are respected.
 - **Calendar page** — full weekly schedule view with conflict highlighting, clean grid layout
 - **Priority buckets** — drag courses into Required / High / Medium / Low / Backup tiers
-- **Course metadata panel** — quick-view course details without leaving the page
+- **Course metadata panel** — quick-view course details (section, day/time, location, instructor rating) without leaving the page
 - **Export/Import** — backup your picks as JSON
 
 ## Usage
@@ -32,6 +33,7 @@ albert-planner/
     ├── course-metadata-panel.js/css  # Course detail overlay
     ├── bucket-manager.js       # Bucket UI + drag-drop logic
     ├── planner.js              # Conflict detection & schedule optimization
+    ├── rmp-service.js          # Rate My Professors lookup + NYU professor matching
     ├── popup.html/css/js       # Extension popup / side panel
     ├── weekly-view.html/css/js # Full calendar view
     └── utils/
