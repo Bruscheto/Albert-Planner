@@ -22,24 +22,26 @@ Works on Chrome and Edge (Chromium-based).
 
 ```
 albert-planner/
-├── manifest.json
-├── assets/                     # Extension icons (16/48/128)
-├── plan/                       # Dev planning docs
+├── manifest.json                     # MV3 manifest
+├── vite.config.js                    # Optional build (copies src → dist); also runs unbuilt
+├── assets/                           # Extension icons (16/48/128)
 └── src/
-    ├── background.js           # Service worker, messaging, context menus
-    ├── content.js              # DOM observer, course scraping, UI injection
-    ├── content.css             # Injected page styles
-    ├── course-storage.js       # chrome.storage CRUD for courses & buckets
-    ├── course-metadata-panel.js/css  # Course detail overlay
-    ├── bucket-manager.js       # Bucket UI + drag-drop logic
-    ├── planner.js              # Conflict detection & schedule optimization
-    ├── rmp-service.js          # Rate My Professors lookup + NYU professor matching
-    ├── popup.html/css/js       # Extension popup / side panel
-    ├── weekly-view.html/css/js # Full calendar view
+    ├── background.js                 # Service worker: messaging, context menus, RMP rating enrichment
+    ├── content.js                    # DOM observer, course scraping (times, rooms, instructors)
+    ├── content.css                   # Injected page styles
+    ├── course-storage.js             # chrome.storage CRUD for courses, buckets, ratings
+    ├── course-metadata-panel.js/css  # Course detail panel (section, day/time, location, rating)
+    ├── bucket-manager.js             # Bucket UI + drag-drop logic
+    ├── planner.js                    # Conflict detection & schedule optimization
+    ├── rmp-service.js                # Rate My Professors lookup + NYU professor matching
+    ├── chrome-mock.js                # Mocks Chrome APIs for local dev
+    ├── popup.html/css/js             # Extension popup / side panel
+    ├── weekly-view.html/css/js       # Full calendar view (entry point)
+    ├── weekly-view/                  # Calendar modules: grid, blocks, drag-drop, buckets, drawer, colors…
     └── utils/
-        ├── constants.js        # Selectors, config, defaults
-        ├── time-parser.js      # "09:30 AM - 10:45 AM", "TTh" → structured data
-        └── calendar-utils.js   # Grid layout, overlap detection
+        ├── constants.js              # Selectors, config, defaults
+        ├── time-parser.js            # "09:30 AM - 10:45 AM", "TTh" → structured data
+        └── calendar-utils.js         # Grid layout, overlap detection
 ```
 
 ## License
