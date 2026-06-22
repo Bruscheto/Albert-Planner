@@ -7,20 +7,34 @@ import {
   getBuckets,
   removeCourseFromPlannerSelection,
   updateBucket,
-} from "../course-storage.js";
-import { dom, state } from "./context.js";
+} from "../storage/course-storage.js";
+import {
+	clearActiveRename,
+	clearPendingBucketDeletions,
+	getActiveRenameState,
+	getDeleteBucketButton,
+	getPendingBucketDeletionCount,
+	getPendingBucketDeletionIds,
+	isDeleteMode,
+	isPlannerCourseSelected,
+	removeBucketCollapseState,
+	reloadSchedule,
+	setActiveRenameState,
+	setDeleteMode,
+	togglePendingBucketDeletion,
+} from "./runtime.js";
 import { showModal, showToast } from "./ui-feedback.js";
 
 export async function handlePlannerAdd(courseId) {
-	if (!courseId || state.plannerSelectionSet.has(courseId)) return;
+	if (!courseId || isPlannerCourseSelected(courseId)) return;
 	await addCourseToPlannerSelection(courseId);
-	await state.reload();
+	await reloadSchedule();
 }
 
 export async function handlePlannerRemove(courseId) {
 	if (!courseId) return;
 	await removeCourseFromPlannerSelection(courseId);
-	await state.reload();
+	await reloadSchedule();
 }
 
 export async function handleBucketCreate() {
@@ -66,7 +80,7 @@ export async function handleBucketCreate() {
 		color: defaultColor,
 		priority: maxPriority + 1,
 	});
-	await state.reload();
+	await reloadSchedule();
 	showToast("Bucket created successfully", "success");
 }
 
@@ -96,7 +110,7 @@ export async function handleBucketRecolor(bucket) {
 	const saveColor = async (color) => {
 		if (color !== bucket.color) {
 			await updateBucket(bucket.id, { color });
-			await state.reload();
+			await reloadSchedule();
 			showToast("Bucket color updated", "success");
 		}
 		const closeBtn = document.getElementById("modal-close");
@@ -138,20 +152,22 @@ export async function handleBucketRecolor(bucket) {
 }
 
 export function cancelInlineRename() {
-	if (state.activeRenameState?.cancel) {
-		state.activeRenameState.cancel();
+	const activeRenameState = getActiveRenameState();
+	if (activeRenameState?.cancel) {
+		activeRenameState.cancel();
 	}
 }
 
 export function startBucketRename(bucket, headerEl) {
-	if (!bucket?.id || state.deleteMode) return;
+	if (!bucket?.id || isDeleteMode()) return;
 
+	const activeRenameState = getActiveRenameState();
 	if (
-		state.activeRenameState?.bucketId &&
-		state.activeRenameState.bucketId !== bucket.id
+		activeRenameState?.bucketId &&
+		activeRenameState.bucketId !== bucket.id
 	) {
 		cancelInlineRename();
-	} else if (state.activeRenameState?.bucketId === bucket.id) {
+	} else if (activeRenameState?.bucketId === bucket.id) {
 		return;
 	}
 
@@ -171,11 +187,11 @@ export function startBucketRename(bucket, headerEl) {
 
 	const cancel = () => {
 		if (!renameContainer.isConnected) {
-			state.activeRenameState = null;
+			clearActiveRename();
 			return;
 		}
 		renameContainer.replaceWith(labelEl);
-		state.activeRenameState = null;
+		clearActiveRename();
 	};
 
 	const commit = async () => {
@@ -196,8 +212,8 @@ export function startBucketRename(bucket, headerEl) {
 		} catch (error) {
 			console.error("[Albert Enhancer] Failed to rename bucket", error);
 		}
-		state.activeRenameState = null;
-		await state.reload();
+		clearActiveRename();
+		await reloadSchedule();
 	};
 
 	input.addEventListener("click", (event) => event.stopPropagation());
@@ -218,51 +234,50 @@ export function startBucketRename(bucket, headerEl) {
 
 	renameContainer.addEventListener("click", (event) => event.stopPropagation());
 
-	state.activeRenameState = {
+	setActiveRenameState({
 		bucketId: bucket.id,
 		cancel,
 		container: renameContainer,
-	};
+	});
 	input.focus();
 	input.select();
 }
 
 export function toggleBucketDeleteSelection(bucketId, headerEl) {
 	if (!bucketId) return;
-	const isSelected = state.bucketsPendingDeletion.has(bucketId);
+	const isSelected = togglePendingBucketDeletion(bucketId);
 	const pill = headerEl.querySelector(".bucket-delete-select");
 	if (isSelected) {
-		state.bucketsPendingDeletion.delete(bucketId);
-		headerEl.classList.remove("is-selected-for-delete");
-		pill?.classList.remove("is-selected");
-		if (pill) pill.textContent = "";
-	} else {
-		state.bucketsPendingDeletion.add(bucketId);
 		headerEl.classList.add("is-selected-for-delete");
 		pill?.classList.add("is-selected");
 		if (pill) pill.textContent = "✓";
+	} else {
+		headerEl.classList.remove("is-selected-for-delete");
+		pill?.classList.remove("is-selected");
+		if (pill) pill.textContent = "";
 	}
 	updateDeleteButtonState();
 }
 
 export function enterDeleteMode() {
-	state.deleteMode = true;
-	state.bucketsPendingDeletion.clear();
-	dom.btnDeleteBucket.classList.add("is-active");
+	setDeleteMode(true);
+	clearPendingBucketDeletions();
+	getDeleteBucketButton()?.classList.add("is-active");
 	updateDeleteButtonState();
-	state.reload();
+	reloadSchedule();
 }
 
 export function exitDeleteMode() {
-	state.deleteMode = false;
-	state.bucketsPendingDeletion.clear();
-	dom.btnDeleteBucket.classList.remove("is-active");
+	setDeleteMode(false);
+	clearPendingBucketDeletions();
+	getDeleteBucketButton()?.classList.remove("is-active");
 	updateDeleteButtonState();
-	state.reload();
+	reloadSchedule();
 }
 
 export function updateDeleteButtonState() {
-	if (!dom.btnDeleteBucket) return;
+	const deleteButton = getDeleteBucketButton();
+	if (!deleteButton) return;
 
 	const trashIcon = `
 		<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -278,26 +293,26 @@ export function updateDeleteButtonState() {
 		</svg>
 	`;
 
-	if (!state.deleteMode) {
-		dom.btnDeleteBucket.innerHTML = trashIcon;
-		dom.btnDeleteBucket.title = "Delete Buckets";
+	if (!isDeleteMode()) {
+		deleteButton.innerHTML = trashIcon;
+		deleteButton.title = "Delete Buckets";
 		return;
 	}
 
-	const count = state.bucketsPendingDeletion.size;
+	const count = getPendingBucketDeletionCount();
 	if (count === 0) {
-		dom.btnDeleteBucket.innerHTML = cancelIcon;
-		dom.btnDeleteBucket.title = "Cancel Delete Mode";
+		deleteButton.innerHTML = cancelIcon;
+		deleteButton.title = "Cancel Delete Mode";
 	} else {
-		dom.btnDeleteBucket.innerHTML = trashIcon;
-		dom.btnDeleteBucket.title = `Delete ${count} Selected Bucket${
+		deleteButton.innerHTML = trashIcon;
+		deleteButton.title = `Delete ${count} Selected Bucket${
 			count > 1 ? "s" : ""
 		}`;
 	}
 }
 
 export async function deleteSelectedBuckets() {
-	const ids = Array.from(state.bucketsPendingDeletion);
+	const ids = getPendingBucketDeletionIds();
 	if (!ids.length) return;
 	const message =
 		ids.length === 1
@@ -313,8 +328,8 @@ export async function deleteSelectedBuckets() {
 
 	for (const bucketId of ids) {
 		await deleteBucket(bucketId);
-		state.bucketCollapseState.delete(bucketId);
+		removeBucketCollapseState(bucketId);
 	}
 	exitDeleteMode();
-	await state.reload();
+	await reloadSchedule();
 }

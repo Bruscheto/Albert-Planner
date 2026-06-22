@@ -1,32 +1,23 @@
 // Popup script for Albert Course Planner
 
+import "../shared/chrome-mock.js";
+import {
+	exportData,
+	assignCourseToBucket,
+	getProfessorRatings,
+	replaceCoursesFromAlbert,
+	clearCourseData,
+} from "../storage/course-storage.js";
+import { analyzeSchedule } from "../planner/planner.js";
+import { renderBuckets } from "./bucket-manager.js";
+import { renderCourseMetadataContent } from "../metadata/course-metadata-panel.js";
+import {
+	getTermBadgeLabel,
+	hasPlannerSessionChange,
+	loadPlannerSession,
+} from "../planner/session.js";
+
 (async () => {
-	const [
-		courseStorage,
-		plannerModule,
-		bucketModule,
-		metadataPanelModule,
-	] =
-		await Promise.all([
-			import(chrome.runtime.getURL("src/course-storage.js")),
-			import(chrome.runtime.getURL("src/planner.js")),
-			import(chrome.runtime.getURL("src/bucket-manager.js")),
-			import(chrome.runtime.getURL("src/course-metadata-panel.js")),
-		]);
-
-	const {
-		getCourses,
-		getBuckets,
-		getPlannerSelection,
-		setPlannerSelection,
-		exportData,
-		assignCourseToBucket,
-		getProfessorRatings,
-	} = courseStorage;
-	const { analyzeSchedule } = plannerModule;
-	const { renderBuckets } = bucketModule;
-	const { renderCourseMetadataContent } = metadataPanelModule;
-
 	const params = new URLSearchParams(window.location.search);
 	const panelMode = params.get("mode") || "popup";
 	const isEmbeddedPanel = panelMode === "drawer" || panelMode === "sidepanel";
@@ -67,7 +58,7 @@
 	let currentBuckets = [];
 	let activeMetadataCourseId = null;
 	let cachedProfRatings = {};
-	const ACTIVE_TERM_KEY = "activeTerm";
+	const CONTENT_SCRIPT_PATH = "content-scripts/content.js";
 
 	function scheduleLoadData() {
 		if (loadDataDebounceTimer) {
@@ -128,23 +119,6 @@
 
 	function wait(ms) {
 		return new Promise((resolve) => setTimeout(resolve, ms));
-	}
-
-	function getTermBadgeLabel(courses, activeTerm = null) {
-		const termNames = [
-			...new Set(
-				courses
-					.map((course) => course?.term?.name)
-					.filter((name) => typeof name === "string" && name.trim()),
-			),
-		];
-
-		if (termNames.length === 1) return termNames[0];
-		if (termNames.length > 1) return `${termNames.length} terms`;
-		if (typeof activeTerm?.name === "string" && activeTerm.name.trim()) {
-			return activeTerm.name;
-		}
-		return "schedule";
 	}
 
 	function closeCourseMetadataDrawer() {
@@ -244,21 +218,18 @@
 				statCoursesCount.textContent = `${analysis.totalCourses} ${label}`;
 			}
 
-			const [courses, buckets, plannerSelection, profRatings, termResult] = await Promise.all([
-				getCourses(),
-				getBuckets(),
-				getPlannerSelection(),
-				getProfessorRatings(),
-				chrome.storage.local.get(ACTIVE_TERM_KEY),
-			]);
+			const {
+				courses,
+				buckets,
+				plannerSelection,
+				professorRatings,
+				termBadgeLabel,
+			} = await loadPlannerSession();
 			currentCourses = courses;
 			currentBuckets = buckets;
-			cachedProfRatings = profRatings;
+			cachedProfRatings = professorRatings;
 			if (termBadge) {
-				termBadge.textContent = getTermBadgeLabel(
-					courses,
-					termResult[ACTIVE_TERM_KEY],
-				);
+				termBadge.textContent = termBadgeLabel;
 			}
 
 			renderPlanningTray(courses, plannerSelection);
@@ -284,12 +255,29 @@
 			}
 		} catch (error) {
 			console.error("[Albert Enhancer] Error loading data:", error);
+			renderLoadFailure();
+		}
+	}
+
+	function renderLoadFailure() {
+		if (statCoursesCount) {
+			statCoursesCount.textContent = "0 courses";
+		}
+		if (termBadge) {
+			termBadge.textContent = "schedule";
+		}
+		if (planningTrayContainer) {
+			planningTrayContainer.innerHTML = `
+				<p class="empty-state-text-small">// planner unavailable</p>
+			`;
+		}
+		if (bucketsContainer) {
 			bucketsContainer.innerHTML = `
-      <div class="empty-state empty-state--error">
-        <p class="empty-state-line">// error</p>
-        <p class="empty-state-text">failed to load courses</p>
-      </div>
-    `;
+				<div class="empty-state empty-state--error">
+					<p class="empty-state-line">// error</p>
+					<p class="empty-state-text">failed to load courses</p>
+				</div>
+			`;
 		}
 	}
 
@@ -360,15 +348,9 @@
 
 	function listenForUpdates() {
 		chrome.storage.onChanged.addListener((changes, namespace) => {
-				if (
-					namespace === "local" &&
-					(changes.courses ||
-						changes.buckets ||
-						changes.professorRatings ||
-						changes[ACTIVE_TERM_KEY])
-				) {
-					scheduleLoadData();
-				}
+			if (namespace === "local" && hasPlannerSessionChange(changes)) {
+				scheduleLoadData();
+			}
 		});
 
 		document.addEventListener("professor-ratings-changed", async () => {
@@ -421,7 +403,7 @@
 				try {
 					await chrome.scripting.executeScript({
 						target: { tabId: tab.id },
-						files: ["src/content.js"],
+						files: [CONTENT_SCRIPT_PATH],
 					});
 
 					response = await requestParseCartWithRetry(tab.id);
@@ -437,15 +419,21 @@
 			}
 
 			assertValidParseResponse(response);
-			if (response.term) {
-				await chrome.storage.local.set({ [ACTIVE_TERM_KEY]: response.term });
-				if (termBadge) {
-					termBadge.textContent = getTermBadgeLabel([], response.term);
-				}
+			if (response.term && termBadge) {
+				termBadge.textContent = getTermBadgeLabel([], response.term);
 			}
 
 			if (response.courses.length > 0) {
-				await chrome.storage.local.set({ courses: response.courses });
+				await replaceCoursesFromAlbert({
+					courses: response.courses,
+					activeTerm: response.term ?? null,
+				});
+				if (termBadge) {
+					termBadge.textContent = getTermBadgeLabel(
+						response.courses,
+						response.term,
+					);
+				}
 				await chrome.action.setBadgeText({
 					text: String(response.courses.length),
 					tabId: tab.id,
@@ -454,16 +442,6 @@
 					color: "#57068c",
 					tabId: tab.id,
 				});
-
-				const fetchedCourseIds = new Set(response.courses.map((c) => c.id));
-				const currentPlannerSelection = await getPlannerSelection();
-				const validPlannerSelection = currentPlannerSelection.filter((id) =>
-					fetchedCourseIds.has(id),
-				);
-
-				if (validPlannerSelection.length !== currentPlannerSelection.length) {
-					await setPlannerSelection(validPlannerSelection);
-				}
 
 				setFetchLabel(`fetched ${response.courses.length} courses`);
 				await loadData();
@@ -517,12 +495,8 @@
 			return;
 		}
 
-			try {
-				await chrome.storage.local.set({
-					courses: [],
-					plannerSelection: [],
-					[ACTIVE_TERM_KEY]: null,
-				});
+		try {
+			await clearCourseData();
 			await chrome.action.setBadgeText({ text: "" });
 			await loadData();
 		} catch (error) {

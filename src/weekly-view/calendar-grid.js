@@ -1,7 +1,7 @@
 // Static calendar scaffolding: time labels, hour lines, quarter ticks,
 // time anchors, and the "now" indicator.
 
-import { dom } from "./context.js";
+import { getCalendarGrid, getTimeColumn } from "./runtime.js";
 import {
 	START_HOUR,
 	END_HOUR,
@@ -11,11 +11,13 @@ import {
 } from "./config.js";
 
 export function generateTimeLabels() {
-	dom.timeColumn.innerHTML = "";
+	const timeColumn = getTimeColumn();
+	if (!timeColumn) return;
+	timeColumn.innerHTML = "";
 
 	const spacer = document.createElement("div");
 	spacer.className = "time-header-spacer";
-	dom.timeColumn.appendChild(spacer);
+	timeColumn.appendChild(spacer);
 
 	for (let hour = START_HOUR; hour < END_HOUR; hour++) {
 		const label = document.createElement("div");
@@ -24,7 +26,7 @@ export function generateTimeLabels() {
 		const suffix =
 			hour === 12 ? "p" : hour > 12 ? "p" : hour === 0 ? "a" : "a";
 		label.innerHTML = `<span class="time-label-num">${displayHour}</span><span class="time-label-meridiem">${suffix}</span>`;
-		dom.timeColumn.appendChild(label);
+		timeColumn.appendChild(label);
 	}
 }
 
@@ -62,7 +64,7 @@ export function generateQuarterTicks() {
 }
 
 export function renderTimeAnchors() {
-	const grid = dom.calendarGrid;
+	const grid = getCalendarGrid();
 	if (!grid) return;
 	for (const old of grid.querySelectorAll(".time-anchor")) old.remove();
 
@@ -83,8 +85,9 @@ export function renderTimeAnchors() {
 }
 
 export function mountNowIndicator() {
-	if (!dom.calendarGrid) return;
-	if (dom.calendarGrid.querySelector(".now-indicator")) return;
+	const grid = getCalendarGrid();
+	if (!grid) return;
+	if (grid.querySelector(".now-indicator")) return;
 	const wrap = document.createElement("div");
 	wrap.className = "now-indicator";
 	wrap.setAttribute("aria-hidden", "true");
@@ -95,11 +98,11 @@ export function mountNowIndicator() {
 	const pill = document.createElement("span");
 	pill.className = "now-indicator-pill";
 	wrap.appendChild(pill);
-	dom.calendarGrid.appendChild(wrap);
+	grid.appendChild(wrap);
 }
 
 export function updateNowIndicator() {
-	const wrap = dom.calendarGrid?.querySelector(".now-indicator");
+	const wrap = getCalendarGrid()?.querySelector(".now-indicator");
 	if (!wrap) return;
 	const now = new Date();
 	const weekdayIndex = now.getDay(); // 0=Sun, 1=Mon, ..., 6=Sat

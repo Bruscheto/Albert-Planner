@@ -1,6 +1,6 @@
 // Shared layout constants for the weekly view.
 
-import { CALENDAR_CONFIG } from "../utils/constants.js";
+import { CALENDAR_CONFIG } from "../shared/constants.js";
 
 export const START_HOUR = CALENDAR_CONFIG.START_HOUR;
 export const END_HOUR = CALENDAR_CONFIG.END_HOUR;

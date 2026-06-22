@@ -1474,6 +1474,15 @@ body.weekly-sidebar-collapsed .calendar-container {
 	visibility: hidden;
 }
 
+.calendar-empty-state.is-error {
+	background: rgba(254, 242, 242, 0.92);
+	border-color: rgba(239, 68, 68, 0.28);
+}
+
+.calendar-empty-state.is-error h3 {
+	color: #b91c1c;
+}
+
 .calendar-empty-state h3 {
 	font-size: 15px;
 	margin-bottom: 8px;

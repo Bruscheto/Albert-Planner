@@ -1,23 +1,35 @@
 // Course metadata drawer: open/close and render its content.
 
-import { state, dom } from "./context.js";
-import { assignCourseToBucket } from "../course-storage.js";
-import { renderCourseMetadataContent } from "../course-metadata-panel.js";
-import { findConflicts } from "../utils/calendar-utils.js";
+import {
+	clearActiveMetadataCourse,
+	getActiveMetadataCourseId,
+	getActiveMetadataFocusComponent,
+	getCachedPlannedSchedule,
+	getCourseById,
+	getCurrentBuckets,
+	getMetadataDrawerBody,
+	getProfessorRatings,
+	hasCourse,
+	isPlannerCourseSelected,
+	reloadSchedule,
+	setActiveMetadataCourse,
+	setMetadataDrawerInert,
+} from "./runtime.js";
+import { assignCourseToBucket } from "../storage/course-storage.js";
+import { renderCourseMetadataContent } from "../metadata/course-metadata-panel.js";
+import { findConflicts } from "../shared/calendar-utils.js";
 import { isCourseOnline } from "./colors.js";
 import { showToast } from "./ui-feedback.js";
 import { cancelInlineRename } from "./bucket-actions.js";
 
 export function closeCourseMetadataDrawer() {
-	state.activeMetadataCourseId = null;
-	state.activeMetadataComponentSection = null;
-	state.activeMetadataComponentType = null;
+	clearActiveMetadataCourse();
 	document.body.classList.remove("metadata-drawer-open");
-	dom.metadataDrawer?.setAttribute("inert", "");
+	setMetadataDrawerInert(true);
 }
 
 function buildCourseContext(course) {
-	const isPlanned = state.plannerSelectionSet.has(course.id);
+	const isPlanned = isPlannerCourseSelected(course.id);
 	const online = isCourseOnline(course);
 
 	const scheduledDays = [];
@@ -33,10 +45,10 @@ function buildCourseContext(course) {
 
 	const conflictCodes = [];
 	if (isPlanned) {
-		const conflicts = findConflicts(course, state.cachedPlannedSchedule);
+		const conflicts = findConflicts(course, getCachedPlannedSchedule());
 		const seen = new Set();
 		for (const c of conflicts) {
-			const other = state.coursesById.get(c.existingCourse);
+			const other = getCourseById(c.existingCourse);
 			if (other && !seen.has(other.courseCode)) {
 				conflictCodes.push(other.courseCode);
 				seen.add(other.courseCode);
@@ -58,30 +70,26 @@ function buildCourseContext(course) {
 }
 
 export function renderCourseMetadataDrawer() {
-	if (!dom.metadataDrawerBody || !state.activeMetadataCourseId) {
+	const drawerBody = getMetadataDrawerBody();
+	const activeCourseId = getActiveMetadataCourseId();
+	if (!drawerBody || !activeCourseId) {
 		return;
 	}
 
-	const course = state.coursesById.get(state.activeMetadataCourseId);
+	const course = getCourseById(activeCourseId);
 	if (!course) {
 		closeCourseMetadataDrawer();
 		return;
 	}
 
-	const focusComponent = state.activeMetadataComponentSection
-		? course.components?.find(
-				(component) =>
-					component.section === state.activeMetadataComponentSection &&
-					component.type === state.activeMetadataComponentType,
-			) || null
-		: null;
+	const focusComponent = getActiveMetadataFocusComponent(course);
 
 	renderCourseMetadataContent({
-		container: dom.metadataDrawerBody,
+		container: drawerBody,
 		course,
-		buckets: state.currentBuckets,
+		buckets: getCurrentBuckets(),
 		context: buildCourseContext(course),
-		ratings: state.cachedProfRatings,
+		ratings: getProfessorRatings(),
 		focusComponent,
 		onBucketSelect: async (bucketId) => {
 			if ((course.bucket ?? null) === (bucketId ?? null)) {
@@ -92,7 +100,7 @@ export function renderCourseMetadataDrawer() {
 				bucketId ? "Course bucket updated" : "Course moved to Unsorted",
 				"success",
 			);
-			await state.reload();
+			await reloadSchedule();
 		},
 	});
 }
@@ -100,13 +108,11 @@ export function renderCourseMetadataDrawer() {
 export function openCourseMetadataDrawer(courseId, focusComponent = null) {
 	if (!courseId) return;
 	cancelInlineRename();
-	state.activeMetadataCourseId = courseId;
-	state.activeMetadataComponentSection = focusComponent?.section ?? null;
-	state.activeMetadataComponentType = focusComponent?.type ?? null;
+	setActiveMetadataCourse(courseId, focusComponent);
 	renderCourseMetadataDrawer();
-	if (!state.coursesById.has(courseId)) {
+	if (!hasCourse(courseId)) {
 		return;
 	}
 	document.body.classList.add("metadata-drawer-open");
-	dom.metadataDrawer?.removeAttribute("inert");
+	setMetadataDrawerInert(false);
 }

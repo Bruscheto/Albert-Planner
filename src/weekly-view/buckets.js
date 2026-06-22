@@ -1,6 +1,14 @@
 // Bucket sidebar and planning-tray rendering.
 
-import { state, dom } from "./context.js";
+import {
+	clearActiveRename,
+	getBucketCollapsed,
+	getSidebarBuckets,
+	getSidebarPlanner,
+	isBucketPendingDeletion,
+	isDeleteMode,
+	setBucketCollapsed,
+} from "./runtime.js";
 import { courseCodeToColor, isCourseOnline } from "./colors.js";
 import {
 	handlePlannerAdd,
@@ -19,8 +27,10 @@ import {
 } from "./drag-drop.js";
 
 export function renderBucketsSidebar(byBucket, plannedSet = new Set()) {
-	dom.sidebarBuckets.innerHTML = "";
-	state.activeRenameState = null;
+	const sidebarBuckets = getSidebarBuckets();
+	if (!sidebarBuckets) return;
+	sidebarBuckets.innerHTML = "";
+	clearActiveRename();
 
 	const hasUserBuckets = Object.keys(byBucket).some(
 		(key) => key !== "unsorted",
@@ -30,26 +40,22 @@ export function renderBucketsSidebar(byBucket, plannedSet = new Set()) {
 		helper.className = "bucket-helper-text";
 		helper.textContent =
 			"// organize courses into groups to compare schedule options";
-		dom.sidebarBuckets.appendChild(helper);
+		sidebarBuckets.appendChild(helper);
 	}
 
 	for (const key of Object.keys(byBucket)) {
 		const { bucket, courses } = byBucket[key];
 		const bucketId = bucket.id ?? null;
 		const collapseKey = bucketId ?? "unsorted";
-		let isCollapsed = state.bucketCollapseState.get(collapseKey);
-		if (isCollapsed === undefined) {
-			isCollapsed = true;
-			state.bucketCollapseState.set(collapseKey, true);
-		}
+		const isCollapsed = getBucketCollapsed(collapseKey);
 		const isDeletable = Boolean(bucketId);
 		const isSelectedForDelete =
-			state.deleteMode && isDeletable && state.bucketsPendingDeletion.has(bucketId);
+			isDeleteMode() && isDeletable && isBucketPendingDeletion(bucketId);
 
 		const wrapper = document.createElement("div");
 		wrapper.className = "bucket-wrapper";
 		wrapper.dataset.bucketId = collapseKey;
-		if (state.deleteMode && isDeletable) {
+		if (isDeleteMode() && isDeletable) {
 			wrapper.classList.add("is-delete-mode");
 		}
 		if (isSelectedForDelete) {
@@ -65,7 +71,7 @@ export function renderBucketsSidebar(byBucket, plannedSet = new Set()) {
 			`${bucket.name} bucket, ${courses.length} courses`,
 		);
 		header.setAttribute("aria-expanded", String(!isCollapsed));
-		if (state.deleteMode && isDeletable) {
+		if (isDeleteMode() && isDeletable) {
 			header.classList.add("is-delete-mode");
 		}
 		if (isSelectedForDelete) {
@@ -89,7 +95,7 @@ export function renderBucketsSidebar(byBucket, plannedSet = new Set()) {
 			: "";
 		header.innerHTML = `
 			${
-				state.deleteMode && isDeletable
+				isDeleteMode() && isDeletable
 					? `<span class="bucket-delete-select ${
 							isSelectedForDelete ? "is-selected" : ""
 						}">${isSelectedForDelete ? "✓" : ""}</span>`
@@ -216,7 +222,7 @@ export function renderBucketsSidebar(byBucket, plannedSet = new Set()) {
 			header.classList.toggle("is-collapsed", nextCollapsed);
 			wrapper.classList.toggle("is-collapsed", nextCollapsed);
 			header.setAttribute("aria-expanded", String(!nextCollapsed));
-			state.bucketCollapseState.set(collapseKey, nextCollapsed);
+			setBucketCollapsed(collapseKey, nextCollapsed);
 		};
 
 		header.addEventListener("click", (event) => {
@@ -224,7 +230,7 @@ export function renderBucketsSidebar(byBucket, plannedSet = new Set()) {
 				return;
 			}
 
-			if (state.deleteMode && isDeletable) {
+			if (isDeleteMode() && isDeletable) {
 				toggleBucketDeleteSelection(bucketId, header);
 				return;
 			}
@@ -235,7 +241,7 @@ export function renderBucketsSidebar(byBucket, plannedSet = new Set()) {
 		header.addEventListener("keydown", (event) => {
 			if (event.key === "Enter" || event.key === " ") {
 				event.preventDefault();
-				if (state.deleteMode && isDeletable) {
+				if (isDeleteMode() && isDeletable) {
 					toggleBucketDeleteSelection(bucketId, header);
 				} else {
 					toggleBucketCollapse();
@@ -247,28 +253,28 @@ export function renderBucketsSidebar(byBucket, plannedSet = new Set()) {
 			const label = header.querySelector(".bucket-label");
 			label?.addEventListener("dblclick", (event) => {
 				event.stopPropagation();
-				if (state.deleteMode) return;
+				if (isDeleteMode()) return;
 				startBucketRename(bucket, header);
 			});
 
 			const renameButton = header.querySelector(".bucket-rename-button");
 			renameButton?.addEventListener("click", (event) => {
 				event.stopPropagation();
-				if (state.deleteMode) return;
+				if (isDeleteMode()) return;
 				startBucketRename(bucket, header);
 			});
 
 			const colorButton = header.querySelector(".bucket-color-button");
 			colorButton?.addEventListener("click", (event) => {
 				event.stopPropagation();
-				if (state.deleteMode) return;
+				if (isDeleteMode()) return;
 				handleBucketRecolor(bucket);
 			});
 		}
 
 		wrapper.appendChild(header);
 		wrapper.appendChild(courseList);
-		dom.sidebarBuckets.appendChild(wrapper);
+		sidebarBuckets.appendChild(wrapper);
 	}
 }
 
@@ -321,13 +327,15 @@ export function buildBucketMap(buckets) {
 }
 
 export function renderPlanningTray(plannedCourses, bucketMap) {
-	dom.sidebarPlanner.innerHTML = "";
+	const sidebarPlanner = getSidebarPlanner();
+	if (!sidebarPlanner) return;
+	sidebarPlanner.innerHTML = "";
 	if (plannedCourses.length === 0) {
 		const empty = document.createElement("p");
 		empty.className = "tray-empty";
 		empty.textContent =
 			"// nothing queued — drag from buckets or use the + icons";
-		dom.sidebarPlanner.appendChild(empty);
+		sidebarPlanner.appendChild(empty);
 		return;
 	}
 
@@ -387,6 +395,6 @@ export function renderPlanningTray(plannedCourses, bucketMap) {
 		actions.appendChild(removeButton);
 
 		chip.append(details, actions);
-		dom.sidebarPlanner.appendChild(chip);
+		sidebarPlanner.appendChild(chip);
 	}
 }

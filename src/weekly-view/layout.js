@@ -1,6 +1,6 @@
 // Overlap layout math for day-column events (pure, no shared state).
 
-import { timeToMinutes } from "../utils/time-parser.js";
+import { timeToMinutes } from "../shared/time-parser.js";
 
 /**
  * Calculate layout for overlapping events in a day.

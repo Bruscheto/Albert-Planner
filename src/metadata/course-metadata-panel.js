@@ -1,5 +1,5 @@
-import { setProfessorRating } from "./course-storage.js";
-import { formatTime } from "./utils/time-parser.js";
+import { courseMetadataEffects } from "./course-metadata-effects.js";
+import { formatTime } from "../shared/time-parser.js";
 
 function getPrimaryComponent(course) {
 	return (
@@ -25,7 +25,6 @@ function getInstructors(course) {
 	return names;
 }
 
-const rmpInsightCache = new Map();
 const OPEN_DELAY_MS = 120;
 const CLOSE_DELAY_MS = 200;
 
@@ -174,31 +173,6 @@ function formatReviewDate(value) {
 		day: "numeric",
 		year: "numeric",
 	});
-}
-
-function getRmpCacheKey(professorName, course) {
-	return [
-		professorName.trim().toLowerCase(),
-		course?.id || "",
-		course?.courseCode || "",
-	]
-		.filter(Boolean)
-		.join("|");
-}
-
-async function lookupRmpProfessor(professorName, course) {
-	const key = getRmpCacheKey(professorName, course);
-	if (!rmpInsightCache.has(key)) {
-		rmpInsightCache.set(
-			key,
-			chrome.runtime.sendMessage({
-				type: "LOOKUP_RMP_PROFESSOR",
-				professorName,
-				course,
-			}),
-		);
-	}
-	return rmpInsightCache.get(key);
 }
 
 function renderInsightLoading(panel, professorName) {
@@ -388,7 +362,10 @@ function createProfessorInsightEntry({ professorName, course, manualRating }) {
 			hasLoaded = true;
 			renderInsightLoading(panel, professorName);
 			try {
-				const result = await lookupRmpProfessor(professorName, course);
+				const result = await courseMetadataEffects.lookupRmpProfessor(
+					professorName,
+					course,
+				);
 				renderRmpInsightPanel(panel, result, course);
 			} catch (error) {
 				console.error("[Albert Enhancer] RMP insight lookup failed:", error);
@@ -460,21 +437,21 @@ function showRatingInput(badge, profName, currentVal) {
 	const commit = async () => {
 		const raw = input.value.trim();
 		badge.classList.remove("rating-good", "rating-mid", "rating-low");
-		if (raw === "") {
-			await setProfessorRating(profName, null);
+		const { rating } = await courseMetadataEffects.saveManualProfessorRating(
+			profName,
+			raw,
+		);
+		if (rating === null) {
 			badge.classList.remove("has-value");
 			badge.textContent = "~";
 			badge.title = "Add rating";
 		} else {
-			const val = Math.min(5, Math.max(0, parseFloat(raw) || 0));
-			await setProfessorRating(profName, val);
-			badge.classList.add("has-value", `rating-${ratingTier(val)}`);
-			badge.replaceChildren(...makeDotNumber(val.toFixed(1)));
-			badge.title = `Rating: ${val}/5 — click to edit`;
+			badge.classList.add("has-value", `rating-${ratingTier(rating)}`);
+			badge.replaceChildren(...makeDotNumber(rating.toFixed(1)));
+			badge.title = `Rating: ${rating}/5 — click to edit`;
 		}
 		badge.style.width = "";
 		badge.style.height = "";
-		document.dispatchEvent(new CustomEvent("professor-ratings-changed"));
 	};
 
 	input.addEventListener("blur", commit);

@@ -1,6 +1,6 @@
 // Course storage using chrome.storage.local
 
-import { STORAGE_KEYS, DEFAULT_BUCKETS } from "./utils/constants.js";
+import { STORAGE_KEYS, DEFAULT_BUCKETS } from "../shared/constants.js";
 
 const DEFAULT_SETTINGS = {
 	showWeekends: false,
@@ -187,14 +187,14 @@ export async function saveCourse(course) {
 	validateCourse(course);
 	const courses = await getCourses();
 	const index = courses.findIndex((c) => c.id === course.id);
+	const nextCourses =
+		index >= 0
+			? courses.map((storedCourse) =>
+					storedCourse.id === course.id ? { ...storedCourse, ...course } : storedCourse,
+				)
+			: [...courses, course];
 
-	if (index >= 0) {
-		courses[index] = { ...courses[index], ...course };
-	} else {
-		courses.push(course);
-	}
-
-	await chrome.storage.local.set({ [STORAGE_KEYS.COURSES]: courses });
+	await chrome.storage.local.set({ [STORAGE_KEYS.COURSES]: nextCourses });
 }
 
 /**
@@ -214,12 +214,15 @@ export async function removeCourse(courseId) {
  */
 export async function assignCourseToBucket(courseId, bucketId) {
 	const courses = await getCourses();
-	const course = courses.find((c) => c.id === courseId);
+	const hasCourse = courses.some((course) => course.id === courseId);
 
-	if (course) {
-		course.bucket = bucketId;
-		course.updatedAt = Date.now();
-		await chrome.storage.local.set({ [STORAGE_KEYS.COURSES]: courses });
+	if (hasCourse) {
+		const nextCourses = courses.map((course) =>
+			course.id === courseId
+				? { ...course, bucket: bucketId, updatedAt: Date.now() }
+				: course,
+		);
+		await chrome.storage.local.set({ [STORAGE_KEYS.COURSES]: nextCourses });
 	}
 }
 
@@ -267,9 +270,10 @@ export async function createBucket(bucket) {
 	const buckets = await getBuckets();
 	const id = `bucket-${Date.now()}`;
 	const nextBucket = validateBucket({ id, ...bucket });
-	buckets.push(nextBucket);
-	buckets.sort((a, b) => a.priority - b.priority);
-	await chrome.storage.local.set({ [STORAGE_KEYS.BUCKETS]: buckets });
+	const nextBuckets = [...buckets, nextBucket].sort(
+		(a, b) => a.priority - b.priority,
+	);
+	await chrome.storage.local.set({ [STORAGE_KEYS.BUCKETS]: nextBuckets });
 	return id;
 }
 
@@ -289,8 +293,12 @@ export async function updateBucket(bucketId, updates) {
 	const bucket = buckets.find((b) => b.id === bucketId);
 	if (bucket) {
 		const nextBucket = validateBucket({ ...bucket, ...updates });
-		Object.assign(bucket, nextBucket);
-		await chrome.storage.local.set({ [STORAGE_KEYS.BUCKETS]: buckets });
+		const nextBuckets = buckets
+			.map((storedBucket) =>
+				storedBucket.id === bucketId ? nextBucket : storedBucket,
+			)
+			.sort((a, b) => a.priority - b.priority);
+		await chrome.storage.local.set({ [STORAGE_KEYS.BUCKETS]: nextBuckets });
 	}
 }
 
@@ -331,14 +339,46 @@ export async function setPlannerSelection(courseIds) {
 	});
 }
 
+export async function replaceCoursesFromAlbert({ courses, activeTerm = null }) {
+	assert(Array.isArray(courses), "Courses must be an array");
+	for (let index = 0; index < courses.length; index += 1) {
+		validateCourse(courses[index]);
+	}
+
+	const courseIds = new Set(courses.map((course) => course.id));
+	const plannerSelection = await getPlannerSelection();
+	const nextPlannerSelection = validatePlannerSelection(
+		plannerSelection.filter((id) => courseIds.has(id)),
+	);
+
+	await chrome.storage.local.set({
+		[STORAGE_KEYS.COURSES]: courses,
+		[STORAGE_KEYS.PLANNER_SELECTION]: nextPlannerSelection,
+		[STORAGE_KEYS.ACTIVE_TERM]: activeTerm,
+	});
+
+	return {
+		courses,
+		plannerSelection: nextPlannerSelection,
+		activeTerm,
+	};
+}
+
+export async function clearCourseData() {
+	await chrome.storage.local.set({
+		[STORAGE_KEYS.COURSES]: [],
+		[STORAGE_KEYS.PLANNER_SELECTION]: [],
+		[STORAGE_KEYS.ACTIVE_TERM]: null,
+	});
+}
+
 export async function addCourseToPlannerSelection(courseId) {
 	if (!courseId) return;
 	const selection = await getPlannerSelection();
 	if (selection.includes(courseId)) {
 		return;
 	}
-	selection.push(courseId);
-	await setPlannerSelection(selection);
+	await setPlannerSelection([...selection, courseId]);
 }
 
 export async function removeCourseFromPlannerSelection(courseId) {
@@ -365,8 +405,9 @@ export async function getSettings() {
  */
 export async function updateSettings(updates) {
 	const settings = await getSettings();
-	Object.assign(settings, updates);
-	await chrome.storage.local.set({ [STORAGE_KEYS.SETTINGS]: settings });
+	await chrome.storage.local.set({
+		[STORAGE_KEYS.SETTINGS]: { ...settings, ...updates },
+	});
 }
 
 // ============ Sync / Import / Export ============
@@ -454,13 +495,14 @@ export async function getProfessorRatings() {
  */
 export async function setProfessorRating(name, rating) {
 	const ratings = await getProfessorRatings();
+	const nextRatings = { ...ratings };
 	if (rating === null || rating === undefined || rating === "") {
-		delete ratings[name];
+		delete nextRatings[name];
 	} else {
-		ratings[name] = Number(rating);
+		nextRatings[name] = Number(rating);
 	}
 	await chrome.storage.local.set({
-		[STORAGE_KEYS.PROFESSOR_RATINGS]: ratings,
+		[STORAGE_KEYS.PROFESSOR_RATINGS]: nextRatings,
 	});
 }
 

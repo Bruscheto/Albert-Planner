@@ -28,6 +28,7 @@ export const STORAGE_KEYS = {
 	SETTINGS: "settings",
 	PLANNER_SELECTION: "plannerSelection",
 	PROFESSOR_RATINGS: "professorRatings",
+	ACTIVE_TERM: "activeTerm",
 };
 
 // New Albert page structure selectors

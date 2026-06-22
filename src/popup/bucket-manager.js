@@ -2,8 +2,8 @@
 
 import {
 	assignCourseToBucket,
-} from "./course-storage.js";
-import { formatTime } from "./utils/time-parser.js";
+} from "../storage/course-storage.js";
+import { formatTime } from "../shared/time-parser.js";
 
 /**
  * Render bucket list in the popup
@@ -214,26 +214,4 @@ async function handleDrop(e, bucketId) {
 		// Trigger UI refresh - emit custom event
 		document.dispatchEvent(new CustomEvent("coursesUpdated"));
 	}
-}
-
-// ============ Bucket Priority Sorting ============
-
-/**
- * Get courses sorted by bucket priority
- * @param {object[]} courses
- * @param {object[]} buckets
- * @returns {object[]}
- */
-export function sortCoursesByPriority(courses, buckets) {
-	const bucketPriority = {};
-	for (const bucket of buckets) {
-		bucketPriority[bucket.id] = bucket.priority;
-	}
-	bucketPriority[null] = 999; // Unsorted goes last
-
-	return [...courses].sort((a, b) => {
-		const priorityA = bucketPriority[a.bucket] ?? 999;
-		const priorityB = bucketPriority[b.bucket] ?? 999;
-		return priorityA - priorityB;
-	});
 }

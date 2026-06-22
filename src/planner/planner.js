@@ -1,13 +1,13 @@
 // Schedule planner and conflict detection
 
-import { getCourses, getBuckets } from "./course-storage.js";
+import { getCourses, getBuckets } from "../storage/course-storage.js";
 import {
 	hasConflict,
 	findConflicts,
 	buildWeeklyGrid,
 	calculateWeeklyHours,
-} from "./utils/calendar-utils.js";
-import { sortCoursesByPriority } from "./bucket-manager.js";
+} from "../shared/calendar-utils.js";
+import { sortCoursesByPriority } from "./bucket-priority.js";
 
 /**
  * Flatten courses into a schedule array of components

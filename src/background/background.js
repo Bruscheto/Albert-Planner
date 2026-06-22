@@ -1,16 +1,20 @@
 // Background service worker for Albert Course Planner
 
-import { initializeStorage, getProfessorRatings } from "./course-storage.js";
-import { STORAGE_KEYS } from "./utils/constants.js";
+import {
+	clearCourseData,
+	initializeStorage,
+	getProfessorRatings,
+} from "../storage/course-storage.js";
+import { STORAGE_KEYS } from "../shared/constants.js";
 import {
 	normalizeProfessorName,
 	searchNyuProfessorMatch,
-} from "./rmp-service.js";
+} from "../rmp/rmp-service.js";
 
 const INSTRUCTOR_TBA_PATTERN = /^(TBA|to be announced)$/i;
 
-const PANEL_PATH = "src/popup.html?mode=sidepanel";
-const WEEKLY_VIEW_PATH = "src/weekly-view.html";
+const PANEL_PATH = "popup.html?mode=sidepanel";
+const WEEKLY_VIEW_PATH = "weekly-view.html";
 const ALLOWED_SIDE_PANEL_HOSTS = ["sis.portal.nyu.edu", "sis.nyu.edu"];
 const RMP_PROFESSOR_CACHE_KEY = "rmpProfessorCache";
 const RMP_CACHE_VERSION = "rmp:v3";
@@ -447,11 +451,7 @@ chrome.contextMenus.onClicked.addListener(async (info) => {
 			break;
 
 		case "clear-courses":
-			await chrome.storage.local.set({
-				courses: [],
-				plannerSelection: [],
-				activeTerm: null,
-			});
+			await clearCourseData();
 			await chrome.action.setBadgeText({ text: "" });
 			console.log("[Albert Enhancer] All courses cleared");
 			break;

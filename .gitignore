@@ -42,9 +42,10 @@ out/
 *.crx
 
 # Local tool state
+.corepack/
+.pnpm-store/
+.wxt/
 .worktrees/
 .claude/CLAUDE.md
 AGENTS.md
 /plan
-test-harness.html
-/test

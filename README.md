@@ -22,26 +22,19 @@ Works on Chrome and Edge (Chromium-based).
 
 ```
 albert-planner/
-├── manifest.json                     # MV3 manifest
-├── vite.config.js                    # Optional build (copies src → dist); also runs unbuilt
+├── wxt.config.js                     # WXT manifest/build config
+├── entrypoints/                      # WXT entrypoints for background, content, popup, weekly view
 ├── assets/                           # Extension icons (16/48/128)
 └── src/
-    ├── background.js                 # Service worker: messaging, context menus, RMP rating enrichment
-    ├── content.js                    # DOM observer, course scraping (times, rooms, instructors)
-    ├── content.css                   # Injected page styles
-    ├── course-storage.js             # chrome.storage CRUD for courses, buckets, ratings
-    ├── course-metadata-panel.js/css  # Course detail panel (section, day/time, location, rating)
-    ├── bucket-manager.js             # Bucket UI + drag-drop logic
-    ├── planner.js                    # Conflict detection & schedule optimization
-    ├── rmp-service.js                # Rate My Professors lookup + NYU professor matching
-    ├── chrome-mock.js                # Mocks Chrome APIs for local dev
-    ├── popup.html/css/js             # Extension popup / side panel
-    ├── weekly-view.html/css/js       # Full calendar view (entry point)
-    ├── weekly-view/                  # Calendar modules: grid, blocks, drag-drop, buckets, drawer, colors…
-    └── utils/
-        ├── constants.js              # Selectors, config, defaults
-        ├── time-parser.js            # "09:30 AM - 10:45 AM", "TTh" → structured data
-        └── calendar-utils.js         # Grid layout, overlap detection
+    ├── background/                   # Service worker runtime: messaging, context menus, RMP enrichment
+    ├── content/                      # Albert page runtime + DOM intake
+    ├── metadata/                     # Shared course detail drawer/panel
+    ├── planner/                      # Planner session loading, conflicts, priority sorting
+    ├── popup/                        # Popup / side panel runtime, styles, bucket list UI
+    ├── rmp/                          # Rate My Professors lookup + NYU professor matching
+    ├── shared/                       # Constants, time parsing, calendar utilities, Chrome mock
+    ├── storage/                      # chrome.storage CRUD for courses, buckets, ratings
+    └── weekly-view/                  # Calendar view runtime, styles, grid, blocks, drag-drop, buckets
 ```
 
 ## License

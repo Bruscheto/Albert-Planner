@@ -1,21 +1,25 @@
 // Export the rendered calendar to a PNG via an SVG <foreignObject> snapshot.
 
-import { dom } from "./context.js";
+import {
+	getCalendarContainer,
+	getExportCalendarButton,
+} from "./runtime.js";
 import { showToast } from "./ui-feedback.js";
 
 export async function handleExportCalendar() {
-	if (!dom.btnExportCalendar) return;
-	const calendarEl = document.querySelector(".calendar-container");
+	const exportButton = getExportCalendarButton();
+	if (!exportButton) return;
+	const calendarEl = getCalendarContainer();
 	if (!calendarEl) {
 		showToast("Calendar not ready", "error");
 		return;
 	}
 
-	const originalLabel = dom.btnExportCalendar.querySelector(
+	const originalLabel = exportButton.querySelector(
 		".header-action-btn-label",
 	)?.textContent;
-	dom.btnExportCalendar.disabled = true;
-	const labelEl = dom.btnExportCalendar.querySelector(".header-action-btn-label");
+	exportButton.disabled = true;
+	const labelEl = exportButton.querySelector(".header-action-btn-label");
 	if (labelEl) labelEl.textContent = "rendering";
 
 	try {
@@ -34,7 +38,7 @@ export async function handleExportCalendar() {
 		console.error("[Albert Enhancer] Calendar export failed:", error);
 		showToast("Export failed", "error");
 	} finally {
-		dom.btnExportCalendar.disabled = false;
+		exportButton.disabled = false;
 		if (labelEl && originalLabel) labelEl.textContent = originalLabel;
 	}
 }

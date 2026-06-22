@@ -2,14 +2,19 @@
 // highlights that course's existing blocks on the calendar and dims the rest.
 // Does nothing for courses that aren't on the calendar.
 
-import { state, dom } from "./context.js";
+import {
+	getCalendarGrid,
+	getWeeklySidebar,
+	isDraggingCourse,
+} from "./runtime.js";
 
 let activeCourseId = null;
 
 function clearHighlight() {
-	if (!dom.calendarGrid) return;
-	dom.calendarGrid.classList.remove("has-hover-highlight");
-	for (const block of dom.calendarGrid.querySelectorAll(
+	const grid = getCalendarGrid();
+	if (!grid) return;
+	grid.classList.remove("has-hover-highlight");
+	for (const block of grid.querySelectorAll(
 		".course-block.is-hover-highlight",
 	)) {
 		block.classList.remove("is-hover-highlight");
@@ -21,20 +26,21 @@ function highlight(courseId) {
 	if (courseId === activeCourseId) return;
 	clearHighlight();
 	// Don't fight an in-progress drag preview.
-	if (state.draggedCourseId || !dom.calendarGrid) return;
+	const grid = getCalendarGrid();
+	if (isDraggingCourse() || !grid) return;
 
-	const blocks = dom.calendarGrid.querySelectorAll(
+	const blocks = grid.querySelectorAll(
 		`.course-block[data-course-id="${CSS.escape(courseId)}"]`,
 	);
 	if (blocks.length === 0) return; // course isn't on the calendar — no preview
 
 	for (const block of blocks) block.classList.add("is-hover-highlight");
-	dom.calendarGrid.classList.add("has-hover-highlight");
+	grid.classList.add("has-hover-highlight");
 	activeCourseId = courseId;
 }
 
 export function setupHoverHighlight() {
-	const sidebar = dom.weeklySidebar;
+	const sidebar = getWeeklySidebar();
 	if (!sidebar) return;
 
 	sidebar.addEventListener("mouseover", (event) => {

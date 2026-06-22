@@ -1,11 +1,15 @@
 // Render the planned schedule as positioned blocks on the calendar grid.
 
-import { state, dom } from "./context.js";
+import {
+	didCourseBlockDragEndRecently,
+	getProfessorRating,
+	setCalendarEmptyStateVisible,
+} from "./runtime.js";
 import { START_HOUR, HOUR_HEIGHT } from "./config.js";
 import { courseCodeToColor, isComponentOnline } from "./colors.js";
 import { layoutEventsForDay } from "./layout.js";
-import { formatTime, timeToMinutes } from "../utils/time-parser.js";
-import { ratingTier } from "../course-metadata-panel.js";
+import { formatTime, timeToMinutes } from "../shared/time-parser.js";
+import { ratingTier } from "../metadata/course-metadata-panel.js";
 import { handleCourseDragStart, handleCourseDragEnd } from "./drag-drop.js";
 import { openCourseMetadataDrawer } from "./metadata-drawer.js";
 import { handlePlannerRemove } from "./bucket-actions.js";
@@ -123,12 +127,13 @@ function createCourseBlock(component, bucketDetails, options = {}) {
 
 	let ratingPill = "";
 	const profName = component.instructor?.trim();
+	const professorRating = profName ? getProfessorRating(profName) : null;
 	if (
 		profName &&
 		!/^(TBA|to be announced)$/i.test(profName) &&
-		state.cachedProfRatings[profName] != null
+		professorRating != null
 	) {
-		const num = Number(state.cachedProfRatings[profName]);
+		const num = Number(professorRating);
 		const r = num.toFixed(1);
 		const tier = ratingTier(num);
 		ratingPill = `<span class="course-block-pill rating rating-${tier}">${r}</span>`;
@@ -167,7 +172,7 @@ function createCourseBlock(component, bucketDetails, options = {}) {
 		if (event.target.closest(".course-block-remove-btn")) {
 			return;
 		}
-		if (Date.now() - state.lastCourseBlockDragEndedAt < 200) {
+		if (didCourseBlockDragEndRecently()) {
 			return;
 		}
 		openCourseMetadataDrawer(component.courseId, component);
@@ -196,6 +201,5 @@ export function clearCourseBlocks() {
 }
 
 export function toggleCalendarEmptyState(isEmpty) {
-	if (!dom.calendarEmptyState) return;
-	dom.calendarEmptyState.classList.toggle("is-hidden", !isEmpty);
+	setCalendarEmptyStateVisible(isEmpty);
 }

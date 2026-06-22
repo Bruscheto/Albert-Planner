@@ -3,16 +3,21 @@
 	"version": "1.1",
 	"private": true,
 	"type": "module",
+	"packageManager": "pnpm@11.8.0",
 	"description": "Chrome extension for planning NYU Albert schedules.",
 	"scripts": {
-		"build": "vite build",
-		"dev": "vite build --watch",
+		"build": "wxt build",
+		"dev": "wxt",
+		"zip": "wxt zip",
+		"test": "node test/scripts/run-all.js",
+		"test:albert-intake": "node test/scripts/albert-intake.test.js",
+		"test:course-metadata-effects": "node test/scripts/course-metadata-effects.test.js",
+		"test:course-storage": "node test/scripts/course-storage.test.js",
+		"test:planner-session": "node test/scripts/planner-session.test.js",
+		"test:weekly-schedule-model": "node test/scripts/weekly-schedule-model.test.js",
 		"test:rmp-matcher": "node test/scripts/rmp-matcher.test.js"
 	},
 	"devDependencies": {
-		"vite": "^8.0.16"
-	},
-	"overrides": {
-		"esbuild": "^0.28.1"
+		"wxt": "^0.20.26"
 	}
 }
