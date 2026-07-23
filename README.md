@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./docs/assets/hero.svg" width="100%" alt="Albert Planner turns an NYU Albert shopping cart into an organized weekly course plan">
+  <img src="./docs/assets/hero-v5.webp" width="100%" alt="Albert Planner logo beside a weekly planner showing a same-day course conflict">
 </p>
 
 <p align="center">
