@@ -1,0 +1,130 @@
+<svg xmlns="http://www.w3.org/2000/svg"
+     width="1200" height="380" viewBox="0 0 1200 380"
+     role="img" aria-labelledby="title desc">
+  <title id="title">Albert Planner</title>
+  <desc id="desc">A Chrome extension that turns an NYU Albert shopping cart into an organized weekly course plan.</desc>
+
+  <rect width="1200" height="380" rx="28" fill="#F7F5FA"/>
+  <rect x="1" y="1" width="1198" height="378" rx="27" fill="none" stroke="#D9C8E4" stroke-width="2"/>
+
+  <g id="title-block" transform="translate(58 48)">
+    <g id="project-mark">
+      <rect width="60" height="60" rx="14" fill="#EEE6F5"/>
+      <rect x="13" y="16" width="34" height="32" rx="7" fill="none" stroke="#57068C" stroke-width="4"/>
+      <path d="M15 27H45" stroke="#57068C" stroke-width="4"/>
+      <path d="M22 11V20M38 11V20" stroke="#57068C" stroke-width="4" stroke-linecap="round"/>
+      <rect x="21" y="33" width="10" height="9" rx="2" fill="#57068C"/>
+    </g>
+
+    <text x="82" y="20"
+          fill="#57068C"
+          font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+          font-size="18" font-weight="700" letter-spacing="1.2">
+      CHROME MV3 · NYU COURSE PLANNING
+    </text>
+    <text x="82" y="59"
+          fill="#17161D"
+          font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"
+          font-size="54" font-weight="750" letter-spacing="-2.4">
+      Albert Planner
+    </text>
+
+    <text x="0" y="132"
+          fill="#3F3D48"
+          font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"
+          font-size="25" font-weight="500">
+      Turn your Albert shopping cart into a schedule
+    </text>
+    <text x="0" y="166"
+          fill="#3F3D48"
+          font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"
+          font-size="25" font-weight="500">
+      you can reason about.
+    </text>
+
+    <g id="process-strip" transform="translate(0 216)">
+      <rect width="500" height="54" rx="10" fill="#FFFFFF" stroke="#D9C8E4"/>
+      <text x="18" y="34"
+            fill="#57068C"
+            font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+            font-size="18" font-weight="700">ALBERT</text>
+      <path d="M98 27H126M119 20L126 27L119 34" fill="none" stroke="#9A70B5" stroke-width="2"/>
+      <text x="144" y="34"
+            fill="#57068C"
+            font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+            font-size="18" font-weight="700">LOCAL PLAN</text>
+      <path d="M274 27H302M295 20L302 27L295 34" fill="none" stroke="#9A70B5" stroke-width="2"/>
+      <text x="320" y="34"
+            fill="#57068C"
+            font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+            font-size="18" font-weight="700">WEEKLY GRID</text>
+    </g>
+  </g>
+
+  <g id="weekly-grid" transform="translate(634 36)">
+    <rect width="510" height="308" rx="18" fill="#FFFFFF" stroke="#D9C8E4" stroke-width="2"/>
+
+    <text x="24" y="35"
+          fill="#57068C"
+          font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+          font-size="18" font-weight="700">~/albert-planner/weekly_</text>
+    <rect x="407" y="18" width="79" height="28" rx="14" fill="#F2EBF7"/>
+    <circle cx="425" cy="32" r="5" fill="#10B981"/>
+    <text x="438" y="37"
+          fill="#57068C"
+          font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+          font-size="15" font-weight="700">29 CR</text>
+
+    <path d="M20 60H490" stroke="#E7DFEC"/>
+    <path d="M68 60V284M152 60V284M236 60V284M320 60V284M404 60V284" stroke="#ECE7F0"/>
+    <path d="M20 112H490M20 166H490M20 220H490M20 274H490" stroke="#ECE7F0"/>
+
+    <g fill="#666777"
+       font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+       font-size="15" font-weight="700" text-anchor="middle">
+      <text x="110" y="83">MON</text>
+      <text x="194" y="83">TUE</text>
+      <text x="278" y="83">WED</text>
+      <text x="362" y="83">THU</text>
+      <text x="446" y="83">FRI</text>
+    </g>
+
+    <g id="course-blocks"
+       font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+       font-weight="700">
+      <rect x="73" y="96" width="74" height="64" rx="9" fill="#A45FC9"/>
+      <text x="82" y="119" fill="#FFFFFF" font-size="15">CSCI-UA</text>
+      <text x="82" y="139" fill="#FFFFFF" font-size="18">101</text>
+      <rect x="241" y="96" width="74" height="64" rx="9" fill="#A45FC9"/>
+      <text x="250" y="119" fill="#FFFFFF" font-size="15">CSCI-UA</text>
+      <text x="250" y="139" fill="#FFFFFF" font-size="18">101</text>
+
+      <rect x="157" y="151" width="74" height="64" rx="9" fill="#63BFAE"/>
+      <text x="166" y="174" fill="#FFFFFF" font-size="15">CSCI-UA</text>
+      <text x="166" y="194" fill="#FFFFFF" font-size="18">201</text>
+      <rect x="325" y="151" width="74" height="64" rx="9" fill="#63BFAE"/>
+      <text x="334" y="174" fill="#FFFFFF" font-size="15">CSCI-UA</text>
+      <text x="334" y="194" fill="#FFFFFF" font-size="18">201</text>
+
+      <rect x="73" y="206" width="74" height="64" rx="9" fill="#B0C960"/>
+      <text x="82" y="229" fill="#FFFFFF" font-size="15">CSCI-UA</text>
+      <text x="82" y="249" fill="#FFFFFF" font-size="18">310</text>
+      <rect x="241" y="206" width="74" height="64" rx="9" fill="#B0C960"/>
+      <text x="250" y="229" fill="#FFFFFF" font-size="15">CSCI-UA</text>
+      <text x="250" y="249" fill="#FFFFFF" font-size="18">310</text>
+
+      <rect x="325" y="96" width="34" height="50" rx="8" fill="#D4173A"/>
+      <rect x="365" y="96" width="34" height="50" rx="8" fill="#E41449"/>
+      <path d="M361 102V140" stroke="#FFFFFF" stroke-width="2" stroke-dasharray="4 4" opacity=".75"/>
+    </g>
+
+    <g transform="translate(334 236)">
+      <circle cx="7" cy="7" r="7" fill="#F2EBF7"/>
+      <circle cx="7" cy="7" r="3" fill="#57068C"/>
+      <text x="22" y="12"
+            fill="#666777"
+            font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+            font-size="16">conflict detected</text>
+    </g>
+  </g>
+</svg>

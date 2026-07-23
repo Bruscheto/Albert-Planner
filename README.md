@@ -1,64 +1,40 @@
-<div align="center">
-  <img src="./assets/icon128.png" alt="Albert Planner icon" width="104" height="104">
+<p align="center">
+  <img src="./docs/assets/hero.svg" width="100%" alt="Albert Planner turns an NYU Albert shopping cart into an organized weekly course plan">
+</p>
 
-  # Albert Planner
+<p align="center">
+  <a href="https://chromewebstore.google.com/detail/albert-planner/lndleikbfacmkakhcfflpgnlapoekmoa"><img src="https://img.shields.io/badge/Chrome_Web_Store-Install-57068C?logo=googlechrome&logoColor=white" alt="Install from the Chrome Web Store"></a>
+  <img src="https://img.shields.io/badge/Manifest-V3-202124?logo=googlechrome&logoColor=white" alt="Chrome Manifest V3">
+  <img src="https://img.shields.io/badge/Built_with-WXT-7C3AED" alt="Built with WXT">
+  <a href="./LICENSE"><img src="https://img.shields.io/badge/License-MIT-16A34A" alt="MIT License"></a>
+</p>
 
-  **Turn your NYU Albert shopping cart into a schedule you can reason about.**
+<p align="center">
+  <a href="#what-it-gives-you">Features</a> ·
+  <a href="#how-it-works">How it works</a> ·
+  <a href="#install">Install</a> ·
+  <a href="#development">Development</a> ·
+  <a href="#privacy">Privacy</a>
+</p>
 
-  Parse courses directly from Albert, organize priorities, compare professor ratings,
-  spot conflicts, and build a weekly plan without leaving your browser.
-
-  [![Install from the Chrome Web Store](https://img.shields.io/badge/Chrome_Web_Store-Install-57068C?logo=googlechrome&logoColor=white)](https://chromewebstore.google.com/detail/albert-planner/lndleikbfacmkakhcfflpgnlapoekmoa)
-  ![Manifest V3](https://img.shields.io/badge/Manifest-V3-202124?logo=googlechrome&logoColor=white)
-  ![WXT](https://img.shields.io/badge/Built_with-WXT-7C3AED)
-  [![MIT License](https://img.shields.io/badge/License-MIT-16A34A)](./LICENSE)
-
-  [Install](#install) · [Features](#features) · [Development](#development) · [Privacy](#privacy)
-</div>
-
-![Albert Planner showing priority buckets beside a weekly course calendar](./docs/assets/readme-preview.png)
+<p align="center">
+  <img src="./docs/assets/readme-preview.png" width="100%" alt="Albert Planner priority buckets beside a populated weekly course calendar">
+  <br>
+  <sub>Side panel and weekly planner rendered with representative local test data.</sub>
+</p>
 
 > Albert Planner is an independent open-source project. It is not affiliated with or endorsed by New York University or Rate My Professors.
 
-## Features
+## What it gives you
 
-<table>
-  <tr>
-    <td width="33%"><strong>Albert import</strong><br>Reads courses, sections, credits, instructors, rooms, statuses, and meeting times from Albert's Shopping Cart and enrollment summary.</td>
-    <td width="33%"><strong>Weekly planner</strong><br>Builds a five-day calendar with credit totals, campus-time statistics, and an exportable PNG.</td>
-    <td width="33%"><strong>Conflict detection</strong><br>Highlights overlapping classes and flags components whose meeting time is still TBA.</td>
-  </tr>
-  <tr>
-    <td><strong>Priority buckets</strong><br>Sorts courses into Required, High, Medium, Low, Backup, or custom buckets with drag and drop.</td>
-    <td><strong>Professor context</strong><br>Matches NYU instructors with Rate My Professors data using name, department, course code, and rating history.</td>
-    <td><strong>Local-first storage</strong><br>Keeps course and planner data in <code>chrome.storage.local</code>; there is no Albert Planner account or backend.</td>
-  </tr>
-</table>
+Albert Planner turns the course information already visible in Albert into one local planning workspace:
 
-## Install
-
-### Chrome Web Store
-
-Install [Albert Planner from the Chrome Web Store](https://chromewebstore.google.com/detail/albert-planner/lndleikbfacmkakhcfflpgnlapoekmoa), then open an NYU Albert Shopping Cart or enrollment summary page.
-
-1. Select the Albert Planner icon or the in-page `~/planner →` control.
-2. Choose **fetch from albert** to import the active term.
-3. Organize courses into buckets and open **calendar** to build the weekly plan.
-
-Albert Planner supports Chrome and other Chromium browsers that implement Manifest V3 and the Side Panel API.
-
-### Load an unpacked build
-
-Requirements: [Node.js](https://nodejs.org/) with Corepack and a Chromium-based browser.
-
-```bash
-git clone https://github.com/Bruscheto/Albert-Planner.git
-cd Albert-Planner
-corepack pnpm install
-corepack pnpm build
-```
-
-Open `chrome://extensions`, enable **Developer mode**, choose **Load unpacked**, and select the generated `dist/` directory. WXT creates `dist/manifest.json`; the repository root is not a loadable extension.
+- **Reliable Albert import** — reads courses, sections, credits, instructors, rooms, statuses, and meeting times from the Shopping Cart and enrollment summary.
+- **A schedule you can inspect** — lays planned courses onto a five-day calendar with credit totals, weekly hours, earliest and latest meetings, and PNG export.
+- **Visible tradeoffs** — highlights overlapping classes and flags components whose meeting time is still TBA.
+- **Flexible priorities** — organizes courses into Required, High, Medium, Low, Backup, or custom drag-and-drop buckets.
+- **Professor context** — matches NYU instructors with Rate My Professors data using name, department, course code, and rating history.
+- **Local-first data** — keeps courses, buckets, settings, and cached ratings in `chrome.storage.local`; there is no Albert Planner account or backend.
 
 ## How it works
 
@@ -74,7 +50,32 @@ flowchart LR
     E --> H["Calendar PNG"]
 ```
 
-The content script only runs on NYU SIS hosts. The background service worker owns extension events, side-panel access, context menus, and cached professor lookups. The popup and weekly view read the same local planner state, so changes remain synchronized across surfaces.
+The content script only runs on NYU SIS hosts. The background service worker owns extension events, side-panel access, context menus, and cached professor lookups. The side panel and weekly view read the same local planner state, so changes stay synchronized across surfaces.
+
+## Install
+
+### Chrome Web Store
+
+Install [Albert Planner from the Chrome Web Store](https://chromewebstore.google.com/detail/albert-planner/lndleikbfacmkakhcfflpgnlapoekmoa), then open an NYU Albert Shopping Cart or enrollment summary page.
+
+1. Select the Albert Planner icon or the in-page `~/planner →` control.
+2. Choose **fetch from albert** to import the active term.
+3. Organize courses into buckets and open **calendar** to build the weekly plan.
+
+Albert Planner supports Chrome and Chromium browsers that implement Manifest V3 and the Side Panel API.
+
+### Load an unpacked build
+
+Requirements: [Node.js](https://nodejs.org/) with Corepack and a Chromium-based browser.
+
+```bash
+git clone https://github.com/Bruscheto/Albert-Planner.git
+cd Albert-Planner
+corepack pnpm install
+corepack pnpm build
+```
+
+Open `chrome://extensions`, enable **Developer mode**, choose **Load unpacked**, and select the generated `dist/` directory. WXT creates `dist/manifest.json`; the repository root is not a loadable extension.
 
 ## Development
 
@@ -82,8 +83,6 @@ The content script only runs on NYU SIS hosts. The background service worker own
 corepack pnpm install
 corepack pnpm dev
 ```
-
-WXT starts the development build and watches source changes. Use these commands for the main workflows:
 
 | Command | Purpose |
 | --- | --- |
@@ -97,7 +96,7 @@ WXT starts the development build and watches source changes. Use these commands 
 ```text
 Albert-Planner/
 ├── assets/                 Extension icons
-├── docs/assets/            README media
+├── docs/assets/            README visuals
 ├── entrypoints/            WXT background, content, popup, and weekly-view entries
 ├── src/
 │   ├── background/         Service worker, messaging, side panel, and context menus
@@ -120,7 +119,7 @@ Course and planner data stays in the browser. Professor lookups send an instruct
 
 ## Contributing
 
-Issues and focused pull requests are welcome. Before opening a pull request, run:
+Issues and focused pull requests are welcome. Before opening one, run:
 
 ```bash
 corepack pnpm test
