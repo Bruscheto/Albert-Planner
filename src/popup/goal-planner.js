@@ -196,6 +196,8 @@ export function mountGoalPlanner(root) {
 		let dropped = [];
 		if (termKey !== null && allCourses.length) {
 			({ constraints, droppedIds: dropped } = await loadConstraints(termKey, allCourses));
+			// Persist the cleanup once so the notice doesn't repeat.
+			if (dropped.length) await saveConstraints(termKey, constraints, allCourses);
 		}
 		if (!state.courses.length) state.options = null;
 		const coursesKey = planInputsFingerprint(state.courses, constraints);
@@ -205,6 +207,7 @@ export function mountGoalPlanner(root) {
 
 		if (changed) {
 			if (state.proposal) cancelProposal("Your cart or rules changed, so the proposal was discarded.");
+			else if (goalSubmit.dataset.busy === "true") cancelProposal("Your cart or rules changed, so that request was cancelled. Propose rules again.");
 			else requests.invalidate();
 			if (state.options) state.options.stale = true;
 			renderRules();
@@ -299,6 +302,7 @@ export function mountGoalPlanner(root) {
 	function cancelProposal(message) {
 		requests.invalidate();
 		goalSubmit.dataset.busy = "false";
+		goalSubmit.textContent = "propose rules";
 		state.proposal = null;
 		proposalArea.replaceChildren();
 		if (message !== undefined) setGoalStatus(message, message ? "info" : "");
