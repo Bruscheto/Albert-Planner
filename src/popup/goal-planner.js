@@ -235,9 +235,15 @@ export function mountGoalPlanner(root) {
 	}
 
 	// ---- Availability -----------------------------------------------------
+	let downloadInFlight = false;
 	async function refreshAvailability() {
 		state.availability = await checkAvailability(languageModel);
 		renderAvailability();
+		// A download Chrome started elsewhere has no progress events here, so
+		// check back until it finishes.
+		if (state.availability === "downloading" && !downloadInFlight) {
+			setTimeout(refreshAvailability, 5000);
+		}
 	}
 
 	function renderAvailability() {
@@ -277,6 +283,7 @@ export function mountGoalPlanner(root) {
 	}
 
 	async function onDownload() {
+		downloadInFlight = true;
 		state.availability = "downloading";
 		state.downloadProgress = null;
 		renderAvailability();
@@ -290,6 +297,7 @@ export function mountGoalPlanner(root) {
 		} catch {
 			setGoalStatus("The model download didn't finish. You can try again; the rules below work meanwhile.", "error");
 		}
+		downloadInFlight = false;
 		await refreshAvailability();
 	}
 
