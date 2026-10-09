@@ -1,5 +1,5 @@
 import {DAYS,validateConstraints} from '../../src/shared/constraints.js';
-import {createRequestState} from './request-state.js';
+import {createRequestState} from '../../src/shared/request-state.js';
 const node=(tag,value)=>{const el=document.createElement(tag);el.textContent=value;return el;};
 export function mountAI({getState,getConstraints,applyConstraints}) {
  const $=id=>document.getElementById(id);
