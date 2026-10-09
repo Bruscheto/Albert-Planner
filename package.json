@@ -19,7 +19,8 @@
 		"test:course-storage": "node test/scripts/course-storage.test.js",
 		"test:planner-session": "node test/scripts/planner-session.test.js",
 		"test:weekly-schedule-model": "node test/scripts/weekly-schedule-model.test.js",
-		"test:rmp-matcher": "node test/scripts/rmp-matcher.test.js"
+		"test:rmp-matcher": "node test/scripts/rmp-matcher.test.js",
+		"test:schedule-search": "node test/scripts/schedule-search.test.js"
 	},
 	"devDependencies": {
 		"wxt": "^0.20.26"
