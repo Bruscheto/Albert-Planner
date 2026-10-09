@@ -29,7 +29,13 @@ export const STORAGE_KEYS = {
 	PLANNER_SELECTION: "plannerSelection",
 	PROFESSOR_RATINGS: "professorRatings",
 	ACTIVE_TERM: "activeTerm",
+	GOAL_CONSTRAINTS: "goalConstraints",
+	LOCAL_COUNTERS: "localCounters",
 };
+
+// Where "Send feedback" goes. Opened only when the student clicks it, with
+// any counters they chose to include; nothing is sent automatically.
+export const FEEDBACK_URL = "https://github.com/Bruscheto/Albert-Planner/issues/new";
 
 // New Albert page structure selectors
 export const SELECTORS = {

@@ -6,6 +6,7 @@ import {
 } from "../../src/planner/search.js";
 import {
 	describeFailure,
+	diffAlternatives,
 	explainAlternative,
 	sortOrderText,
 	summarizeFacts,
@@ -310,10 +311,14 @@ function rules(patch = {}) {
 		"Sorted by more courses from your planner, then credits closest to your limit, then fewer class days, then later first class, then keeping the sections you picked.",
 	);
 	assert.doesNotMatch(sortOrderText(), /best|optimal/i);
+	assert.deepEqual(diffAlternatives(first.alternatives[0], first.alternatives[1]), {
+		added: ["m1"],
+		removed: ["m3"],
+	});
 	assert.deepEqual(summarizeFacts(first.alternatives[0].facts), [
 		"12 credits",
 		"2 days (Mon Wed)",
-		"first class 11:00 AM",
+		"11:00 AM–3:15 PM",
 	]);
 }
 

@@ -202,8 +202,22 @@ export function summarizeFacts(facts) {
 			? "no timed classes"
 			: `${facts.dayCount} ${facts.dayCount === 1 ? "day" : "days"} (${facts.days.join(" ")})`,
 	);
-	if (facts.earliestStart !== null) {
-		parts.push(`first class ${formatMinutes(facts.earliestStart)}`);
+	if (facts.earliestStart !== null && facts.latestEnd !== null) {
+		parts.push(`${formatMinutes(facts.earliestStart)}–${formatMinutes(facts.latestEnd)}`);
 	}
 	return parts;
+}
+
+/**
+ * What an alternative changes relative to the first one, so near-identical
+ * options are easy to tell apart.
+ * @returns {{ added: string[], removed: string[] }}
+ */
+export function diffAlternatives(base, other) {
+	const baseIds = new Set(base.courseIds);
+	const otherIds = new Set(other.courseIds);
+	return {
+		added: other.courseIds.filter((id) => !baseIds.has(id)),
+		removed: base.courseIds.filter((id) => !otherIds.has(id)),
+	};
 }
