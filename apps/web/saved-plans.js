@@ -1,4 +1,4 @@
-import {defaultConstraints, validateConstraints} from './constraints.js';
+import {defaultConstraints, validateConstraints} from '../../src/shared/constraints.js';
 import { parseBackup } from './import.js';
 
 const PREFIX = 'albert.web.plan.v1.';

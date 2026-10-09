@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {once} from 'node:events';
 import {createCandidate,validateExplanation} from './candidate.js';
 import {createPlannerServer} from './index.js';
-import {defaultConstraints} from '../apps/web/constraints.js';
+import {defaultConstraints} from '../src/shared/constraints.js';
 const course=(id,hour,days=['Mon'])=>({id,courseCode:id,section:'1',title:id,credits:4,components:[{type:'Lecture',days,timeRange:{start:{hours:hour,minutes:0},end:{hours:hour+1,minutes:0}}}]});
 const input=()=>({requestId:'candidate-1',draftRevision:4,goalRevision:2,confirmedConstraints:{...defaultConstraints(),maxCredits:8,unavailableDays:['Fri'],lockedCourseIds:['b']},courseSnapshot:{courses:[course('a',10),course('b',10),course('c',11),course('friday',12,['Fri']),{...course('unknown',13),components:[]}],selection:['a']},planningContext:{term:null,institution:null,campus:null,timeZone:null,confirmed:true}});
 test('candidate respects locks, times, days and credits; facts come from schedule',()=>{

@@ -1,4 +1,4 @@
-import {defaultConstraints, validateConstraints} from './constraints.js';
+import {defaultConstraints, validateConstraints} from '../../src/shared/constraints.js';
 import {parseBackup} from './import.js';
 import {hasConflict} from '../../src/shared/calendar-utils.js';
 import {timeToMinutes} from '../../src/shared/time-parser.js';

@@ -1,4 +1,4 @@
-import {DAYS,validateConstraints} from './constraints.js';
+import {DAYS,validateConstraints} from '../../src/shared/constraints.js';
 import {createRequestState} from './request-state.js';
 const node=(tag,value)=>{const el=document.createElement(tag);el.textContent=value;return el;};
 export function mountAI({getState,getConstraints,applyConstraints}) {

@@ -15,7 +15,7 @@ assert.equal(suggestSchedule({courses:[internal],selection:[]},options).selectio
 assert.throws(()=>suggestSchedule(state,{...options,maxCredits:NaN}));
 assert.throws(()=>suggestSchedule(state,{...options,earliest:1440}));
 console.log('Schedule suggestion checks passed');
-const {defaultConstraints,validateConstraints} = await import('./constraints.js');
+const {defaultConstraints,validateConstraints} = await import('../../src/shared/constraints.js');
 const rules = {...defaultConstraints(),maxCredits:8};
 assert.deepEqual(suggestSchedule(state,{...rules,lockedCourseIds:['a']}).selection,['a','c']);
 assert.deepEqual(suggestSchedule(state,{...rules,excludedCourseIds:['b']}).selection,['a','c']);

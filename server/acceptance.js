@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {once} from 'node:events';
 import {createPlannerServer} from './index.js';
-import {defaultConstraints} from '../apps/web/constraints.js';
+import {defaultConstraints} from '../src/shared/constraints.js';
 import {savePlan,listPlans} from '../apps/web/saved-plans.js';
 
 // Synthetic fixtures only: no browser storage, exports or personal course records.

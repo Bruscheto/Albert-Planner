@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {parseBackup} from './import.js';
-import {requirePlanningContext} from './planning-context.js';
+import {requirePlanningContext} from '../../src/shared/planning-context.js';
 import {savePlan,listPlans} from './saved-plans.js';
 const course = {id:'a',courseCode:'CS',section:'1',title:'Algorithms',credits:4,components:[],term:{name:'Fall 2026',semester:'Fall',year:2026},institution:'NYU',campus:'New York',timeZone:'America/New_York'};
 const parse = courses=>parseBackup({version:1,data:{courses}});

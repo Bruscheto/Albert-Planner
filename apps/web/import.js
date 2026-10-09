@@ -1,4 +1,4 @@
-import {courseContext, planningContext} from './planning-context.js';
+import {courseContext, planningContext} from '../../src/shared/planning-context.js';
 // Read only the planning fields from a legacy extension export.
 export function parseBackup(value) {
  const fail = (message) => { throw new Error(message); };

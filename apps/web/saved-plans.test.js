@@ -16,7 +16,7 @@ values.set('albert.web.plan.v1.broken','invalid');
 assert.equal(listPlans(storage).unreadable,1);
 assert.equal(values.get('albert.web.plan.v1.broken'),'invalid');
 console.log('Saved plan checks passed: round trip, immutable copies, collision, validation, quota, corrupt data.');
-const {defaultConstraints} = await import('./constraints.js');
+const {defaultConstraints} = await import('../../src/shared/constraints.js');
 const original = values.get('albert.web.plan.v1.a');
 const legacy = JSON.parse(original); delete legacy.constraints;
 values.set('albert.web.plan.v1.a',JSON.stringify(legacy));

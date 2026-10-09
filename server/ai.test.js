@@ -4,8 +4,8 @@ import {once} from 'node:events';
 import http from 'node:http';
 import {createPlannerServer} from './index.js';
 import {createOpenAIInterpreter} from './openai.js';
-import {validateInterpretation,validateInterpretRequest} from '../apps/web/ai-contract.js';
-import {defaultConstraints} from '../apps/web/constraints.js';
+import {validateInterpretation,validateInterpretRequest} from '../src/shared/ai-contract.js';
+import {defaultConstraints} from '../src/shared/constraints.js';
 const input=()=>({requestId:'test-1',draftRevision:1,goalText:'No Friday classes, nothing before 10am, at most 16 credits.',currentConstraints:defaultConstraints(),courses:[{id:'a',courseCode:'MATH',title:'Math',section:'1'}],planningContext:{term:null,institution:null,campus:null,timeZone:null,confirmed:true}});
 const output=()=>({constraintPatch:{maxCredits:16,earliestMinutes:600,unavailableDays:['Fri'],lockedCourseIds:null,excludedCourseIds:null},unresolvedGoals:[],clarificationQuestions:[]});
 async function server(t,options={}) {

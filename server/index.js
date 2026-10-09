@@ -1,12 +1,12 @@
 import http from 'node:http';
 import {readFile} from 'node:fs/promises';
 import {pathToFileURL} from 'node:url';
-import {validateInterpretRequest,validateInterpretation} from '../apps/web/ai-contract.js';
+import {validateInterpretRequest,validateInterpretation} from '../src/shared/ai-contract.js';
 import {createCandidate,validateExplanation} from './candidate.js';
 import {createOpenAIExplainer,createOpenAIInterpreter} from './openai.js';
 const root = new URL('../',import.meta.url);
-const webFiles = ['index.html','app.js','style.css','fonts.css','import.js','saved-plans.js','compare.js','suggest.js','constraints.js','planning-context.js','ai-contract.js','ai-ui.js','request-state.js','fonts/font-3.ttf','fonts/font-4.ttf','fonts/font-5.ttf'];
-const assets = new Map([...webFiles.map(file=>[`/apps/web/${file}`,`apps/web/${file}`]),...['calendar-utils.js','time-parser.js','constants.js'].map(file=>[`/src/shared/${file}`,`src/shared/${file}`])]);
+const webFiles = ['index.html','app.js','style.css','fonts.css','import.js','saved-plans.js','compare.js','suggest.js','ai-ui.js','request-state.js','fonts/font-3.ttf','fonts/font-4.ttf','fonts/font-5.ttf'];
+const assets = new Map([...webFiles.map(file=>[`/apps/web/${file}`,`apps/web/${file}`]),...['calendar-utils.js','time-parser.js','constants.js','constraints.js','planning-context.js','ai-contract.js'].map(file=>[`/src/shared/${file}`,`src/shared/${file}`])]);
 assets.set('/apps/web/','apps/web/index.html');
 const mime = {html:'text/html; charset=utf-8',js:'text/javascript; charset=utf-8',css:'text/css; charset=utf-8',ttf:'font/ttf'};
 class HttpError extends Error { constructor(status,message) { super(message); this.status=status; } }

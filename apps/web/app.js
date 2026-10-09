@@ -1,7 +1,7 @@
 import {createRequestState} from './request-state.js';
 import {mountAI} from './ai-ui.js';
-import {requirePlanningContext} from './planning-context.js';
-import {DAYS, defaultConstraints, validateConstraints} from './constraints.js';
+import {requirePlanningContext} from '../../src/shared/planning-context.js';
+import {DAYS, defaultConstraints, validateConstraints} from '../../src/shared/constraints.js';
 import {suggestSchedule} from './suggest.js';
 import {comparePlans} from './compare.js';
 import {savePlan, listPlans, exportPlan, deletePlan} from './saved-plans.js';
