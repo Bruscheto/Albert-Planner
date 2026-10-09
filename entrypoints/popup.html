@@ -110,6 +110,15 @@
                         <span class="toggle-label">Notifications</span>
                     </label>
                 </div>
+                <div class="setting-block" aria-labelledby="ai-check-heading">
+                    <h3 class="setting-block-title" id="ai-check-heading">// on-device AI check</h3>
+                    <p class="setting-block-note">Checks whether this computer can run the goal box and times one sample goal. It never starts a download.</p>
+                    <div class="setting-block-actions">
+                        <button id="btn-ai-check" type="button" class="btn-secondary">run check</button>
+                        <button id="btn-copy-ai-check" type="button" class="btn-secondary" hidden>copy result</button>
+                    </div>
+                    <pre id="ai-check-result" class="ai-check-result" role="status" aria-live="polite" hidden></pre>
+                </div>
                 <div class="setting-block" aria-labelledby="usage-heading">
                     <h3 class="setting-block-title" id="usage-heading">// local usage counts</h3>
                     <p class="setting-block-note">Kept only in this browser. Nothing is sent unless you copy it into feedback yourself.</p>

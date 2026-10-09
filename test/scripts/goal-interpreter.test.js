@@ -430,3 +430,30 @@ for (const fixture of fixtures) {
 console.log(
 	`Goal interpreter tests passed: ${fixtures.length} interpretation fixtures, timeout, cancellation, bounds, availability, partial apply`,
 );
+
+// --- Hardware spike check ------------------------------------------------
+{
+	const { runAiCheck, formatAiCheck } = await import("../../src/planner/ai-check.js");
+	let clock = 0;
+	const now = () => (clock += 400);
+	const ready = fakeModel(() =>
+		answer(patch({ maxCredits: 16, earliestMinutes: 600, unavailableDays: ["Fri"] })),
+	);
+	const report = await runAiCheck(ready, { now, browser: "Chrome 141" });
+	assert.deepEqual(report, {
+		availability: "available",
+		browser: "Chrome 141",
+		ran: true,
+		matched: true,
+		latencyMs: 400,
+	});
+	assert.match(formatAiCheck(report), /interpreted correctly\nlatency: 400 ms/);
+
+	const notReady = fakeModel(() => "", { availability: "downloadable" });
+	const skipped = await runAiCheck(notReady, { browser: "Chrome 141" });
+	assert.equal(skipped.ran, false);
+	assert.equal(notReady.calls.create.length, 0, "the check never starts a download");
+	assert.match(formatAiCheck(skipped), /not run \(model not downloaded\)/);
+	assert.equal((await runAiCheck(null, { browser: "x" })).availability, "unsupported");
+	console.log("AI check tests passed");
+}

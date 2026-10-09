@@ -18,6 +18,8 @@ import {
 	loadPlannerSession,
 } from "../planner/session.js";
 import { mountGoalPlanner } from "./goal-planner.js";
+import { formatAiCheck, runAiCheck } from "../planner/ai-check.js";
+import { getLanguageModel } from "../planner/goal-interpreter.js";
 import {
 	COUNTER_NAMES,
 	getCounters,
@@ -64,6 +66,9 @@ const COUNTER_LABELS = {
 	const btnResetCounters = document.getElementById("btn-reset-counters");
 	const btnSendFeedback = document.getElementById("btn-send-feedback");
 	const feedbackIncludeCounts = document.getElementById("feedback-include-counts");
+	const btnAiCheck = document.getElementById("btn-ai-check");
+	const btnCopyAiCheck = document.getElementById("btn-copy-ai-check");
+	const aiCheckResult = document.getElementById("ai-check-result");
 	const goalPlanner = mountGoalPlanner(document.getElementById("goal-planner"));
 	const termBadge = document.getElementById("term-badge");
 	const metadataDrawer = document.getElementById("course-metadata-drawer");
@@ -371,6 +376,31 @@ const COUNTER_LABELS = {
 			await resetCounters();
 			usageStatus.textContent = "Counts reset.";
 			await renderUsageCounters();
+		});
+
+		btnAiCheck.addEventListener("click", async () => {
+			btnAiCheck.disabled = true;
+			btnAiCheck.textContent = "checking…";
+			aiCheckResult.hidden = false;
+			aiCheckResult.textContent = "running…";
+			try {
+				aiCheckResult.textContent = formatAiCheck(
+					await runAiCheck(getLanguageModel()),
+				);
+				btnCopyAiCheck.hidden = false;
+			} finally {
+				btnAiCheck.disabled = false;
+				btnAiCheck.textContent = "run again";
+			}
+		});
+
+		btnCopyAiCheck.addEventListener("click", async () => {
+			try {
+				await navigator.clipboard.writeText(aiCheckResult.textContent);
+				btnCopyAiCheck.textContent = "copied";
+			} catch {
+				btnCopyAiCheck.textContent = "select the text to copy";
+			}
 		});
 
 		btnSendFeedback.addEventListener("click", () => openFeedback(feedbackIncludeCounts.checked));

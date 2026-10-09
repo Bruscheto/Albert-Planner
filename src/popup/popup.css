@@ -2026,6 +2026,21 @@ body.metadata-drawer-open .course-metadata-drawer {
 	font-size: 11.5px;
 }
 
+.ai-check-result {
+	font-family: var(--font-mono);
+	font-size: 11px;
+	line-height: 1.6;
+	white-space: pre-wrap;
+	color: var(--text-primary);
+	background: var(--surface-muted);
+	border-radius: var(--radius-md);
+	padding: 8px 10px;
+}
+
+.setting-block [hidden] {
+	display: none;
+}
+
 .setting-toggle--inline {
 	justify-content: flex-start;
 	gap: 8px;
