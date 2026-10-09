@@ -48,6 +48,10 @@ The **plan with goals** section of the side panel turns a goal such as "no Frida
 - **Grounded explanations.** Every course in an option is marked included, left out with a reason, or unknown (TBA). The text comes from computed facts, not from a model.
 - **Nothing applies itself.** Proposals apply only after you confirm them, and options change your planner only when you apply one. Applying rechecks that your cart and rules haven't changed.
 
+![Before and after: the side panel gains a goal box, reviewable rule proposals and ranked schedule options](docs/images/goal-planner-before-after.png)
+
+![An option with every course explained, plus the required-course, download and no-AI states](docs/images/goal-planner-details.png)
+
 ## How it works
 
 ```mermaid

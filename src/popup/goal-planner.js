@@ -693,8 +693,25 @@ export function mountGoalPlanner(root) {
 		countSafely("searchRuns");
 		if (result.truncated) countSafely("searchTruncated");
 		optionsAnnouncer.textContent = announceResult(result);
-		const first = optionsArea.querySelector(".option-name, .options-failure, .options-empty");
-		first?.scrollIntoView({ block: "nearest", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+		revealResults(optionsArea.firstElementChild);
+	}
+
+	/**
+	 * Bring new results up into view. Scrolls only the panel's own scroller:
+	 * `scrollIntoView` would also scroll `overflow: hidden` ancestors and
+	 * expose the settings drawer parked below the panel.
+	 */
+	function revealResults(target) {
+		if (!target) return;
+		const scroller = target.closest(".scrollable-content");
+		if (!scroller) return;
+		const view = scroller.getBoundingClientRect();
+		const offset = target.getBoundingClientRect().top - view.top;
+		if (offset >= 0 && offset < view.height * 0.4) return;
+		scroller.scrollTo({
+			top: scroller.scrollTop + offset - 12,
+			behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+		});
 	}
 
 	function announceResult(result) {
@@ -799,14 +816,32 @@ export function mountGoalPlanner(root) {
 
 	function renderDiff({ added, removed }, byId) {
 		if (!added.length && !removed.length) return null;
+		const codeOf = (id) => normalizeCourseCode(byId.get(id)?.courseCode);
+		// A different section of the same course reads as a swap, not as one
+		// course added and another dropped.
+		const swaps = [];
+		const remaining = [...removed];
+		const adds = added.filter((id) => {
+			const match = remaining.findIndex((other) => codeOf(other) === codeOf(id));
+			if (match < 0) return true;
+			swaps.push([remaining[match], id]);
+			remaining.splice(match, 1);
+			return false;
+		});
 		const item = (id, sign) => h("span", { class: `option-diff-item option-diff-item--${sign}` },
 			h("span", { class: "option-diff-sign", "aria-hidden": "true" }, sign === "add" ? "+" : "−"),
 			h("span", { class: "visually-hidden" }, sign === "add" ? "adds " : "drops "),
 			courseLabel(byId.get(id)));
+		const swap = ([from, to]) => h("span", { class: "option-diff-item option-diff-item--swap" },
+			`${byId.get(from).courseCode} · ${byId.get(from).section}`,
+			h("span", { class: "option-diff-sign option-diff-sign--swap", "aria-hidden": "true" }, " → "),
+			h("span", { class: "visually-hidden" }, " switches to section "),
+			byId.get(to).section);
 		return h("p", { class: "option-diff" },
 			h("span", { class: "option-diff-label" }, "vs A"),
-			added.map((id) => item(id, "add")),
-			removed.map((id) => item(id, "remove")));
+			swaps.map(swap),
+			adds.map((id) => item(id, "add")),
+			remaining.map((id) => item(id, "remove")));
 	}
 
 	function renderWhyList(entries, courses, onlyProblems = false) {

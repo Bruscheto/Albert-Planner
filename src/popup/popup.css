@@ -1978,6 +1978,15 @@ body.metadata-drawer-open .course-metadata-drawer {
 	font-weight: 700;
 }
 
+.option-diff-item--swap {
+	color: var(--nyu-purple);
+	background: var(--accent-soft);
+}
+
+.option-diff-sign--swap {
+	margin: 0 2px;
+}
+
 .option-course-code {
 	flex: none;
 	font-weight: 600;
