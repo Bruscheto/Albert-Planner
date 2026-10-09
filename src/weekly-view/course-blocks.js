@@ -150,7 +150,10 @@ function createCourseBlock(component, bucketDetails, options = {}) {
     <div class="course-block-code">${component.courseCode}</div>
     <div class="course-block-time">${startStr} - ${endStr}</div>
     <div class="course-block-title">${component.courseTitle || ""}</div>
-    ${allPills}
+    <div class="course-block-footer">
+      <div class="course-block-instructor">${component.instructor || ""}</div>
+      ${allPills}
+    </div>
   `;
 
 	const removeButton = block.querySelector(".course-block-remove-btn");

@@ -1,0 +1,36 @@
+import assert from 'node:assert/strict';
+import {parseBackup} from './import.js';
+import {requirePlanningContext} from './planning-context.js';
+import {savePlan,listPlans} from './saved-plans.js';
+const course = {id:'a',courseCode:'CS',section:'1',title:'Algorithms',credits:4,components:[],term:{name:'Fall 2026',semester:'Fall',year:2026},institution:'NYU',campus:'New York',timeZone:'America/New_York'};
+const parse = courses=>parseBackup({version:1,data:{courses}});
+const state = parse([course]);
+assert.equal(state.courses[0].term,'Fall 2026');
+assert.equal(state.planningContext.institution,'NYU');
+assert.throws(()=>requirePlanningContext(state),/confirm/);
+state.planningContext.confirmed=true;
+assert.equal(requirePlanningContext(state).term,'Fall 2026');
+for (const patch of [{term:'Spring 2027'},{institution:'Other'},{campus:'Shanghai'},{timeZone:'Asia/Shanghai'}]) {
+ assert.throws(()=>parse([course,{...course,id:'b',...patch}]),/mixed/);
+}
+assert.throws(()=>parse([{...course,term:{...course.term,name:'Spring 2026'}}]),/Conflicting/);
+assert.throws(()=>parse([{...course,campus:{untrusted:true}}]),/Invalid/);
+const unknown = parse([{...course,term:null,institution:null,campus:null,timeZone:null}]);
+assert.equal(unknown.planningContext.term,null);
+assert.throws(()=>requirePlanningContext(unknown),/confirm/);
+unknown.planningContext.confirmed=true;
+assert.equal(requirePlanningContext(unknown).term,null);
+const values = new Map();
+const storage={get length(){return values.size;},key:i=>[...values.keys()][i],getItem:k=>values.get(k)??null,setItem:(k,v)=>values.set(k,v)};
+savePlan(storage,'Context',state,'context');
+const before = [...values.entries()];
+assert.deepEqual(listPlans(storage).plans[0].planningContext,state.planningContext);
+assert.deepEqual([...values.entries()],before);
+const legacy = {...JSON.parse(before[0][1]),id:'legacy'};
+delete legacy.planningContext;
+for(const c of legacy.courses) for(const key of ['term','institution','campus','timeZone']) delete c[key];
+values.set('albert.web.plan.v1.legacy',JSON.stringify(legacy));
+const loaded = listPlans(storage).plans.find(p=>p.id==='legacy');
+assert.equal(loaded.planningContext.confirmed,false);
+assert.equal(loaded.planningContext.term,null);
+console.log('Planning context checks passed: preservation, mixed contexts, unknown acknowledgement, saved and legacy copies.');

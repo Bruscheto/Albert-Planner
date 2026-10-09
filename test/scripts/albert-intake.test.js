@@ -197,7 +197,16 @@ function cartRow({
 	]);
 }
 
-function enrolledRow({ crseId, course, section, day, time, location, instructor }) {
+function enrolledRow({
+	crseId,
+	course,
+	section,
+	day,
+	time,
+	location,
+	instructor,
+	instructorParts,
+}) {
 	return el("tr", { class: "accordion-row" }, [
 		el("td", { headers: "tbl_Course" }, [
 			el("div", { class: "isSSS_CourseTitle" }, [
@@ -207,7 +216,15 @@ function enrolledRow({ crseId, course, section, day, time, location, instructor 
 				}),
 			]),
 		]),
-		textEl("td", instructor, { "data-label": "Instructor" }),
+		instructorParts
+			? el(
+					"td",
+					{ "data-label": "Instructor" },
+					instructorParts.map((part) =>
+						textEl("span", part, { "data-key": "126592_1" }),
+					),
+				)
+			: textEl("td", instructor, { "data-label": "Instructor" }),
 		textEl("td", location, { "data-label": "Location" }),
 		textEl("td", time, { "data-label": "Time" }),
 		textEl("td", day, { "data-label": "Day" }),
@@ -345,7 +362,7 @@ const fixedNow = () => 1_800_000_000_000;
 					crseId: "123",
 					course: "Operating Systems CSCI-UA 202 002 (4)",
 					section: "002",
-					instructor: "Ada Lovelace",
+					instructorParts: ["Shah", "Zahran"],
 					location: "WWH 109",
 					time: "02:00 PM - 03:15 PM",
 					day: "MoWe",
@@ -373,6 +390,7 @@ const fixedNow = () => 1_800_000_000_000;
 	assert.equal(result.courses.length, 1);
 	assert.equal(result.courses[0].status, "Enrolled");
 	assert.equal(result.courses[0].crseId, undefined);
+	assert.equal(result.courses[0].components[0].instructor, "Shah Zahran");
 	assert.deepEqual(result.courses[0].components.map((component) => component.type), [
 		"Lecture",
 		"Recitation",

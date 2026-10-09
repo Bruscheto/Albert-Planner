@@ -8,6 +8,7 @@ import {
 	getProfessorRatings,
 	replaceCoursesFromAlbert,
 	setProfessorRating,
+	updateCourseComponentSchedule,
 	updateBucket,
 } from "../../src/storage/course-storage.js";
 import { STORAGE_KEYS } from "../../src/shared/constants.js";
@@ -149,6 +150,46 @@ assert.deepEqual(await getProfessorRatings(), { Ada: 4.8 });
 await setProfessorRating("Katherine", "5");
 assert.deepEqual(await getProfessorRatings(), { Ada: 4.8, Katherine: 5 });
 
+await replaceCoursesFromAlbert({
+	courses: [course("new-a"), course("new-b")],
+	activeTerm,
+});
+await updateCourseComponentSchedule("new-a", 0, {
+	days: ["Tue", "Thu"],
+	timeRange: {
+		start: { hours: 14, minutes: 30 },
+		end: { hours: 15, minutes: 45 },
+	},
+	room: "  WWH 101  ",
+});
+assert.deepEqual((await getCourses())[0].components[0], {
+	...course("new-a").components[0],
+	days: ["Tue", "Thu"],
+	timeRange: {
+		start: { hours: 14, minutes: 30 },
+		end: { hours: 15, minutes: 45 },
+	},
+	room: "WWH 101",
+	isTBA: false,
+	manualSchedule: true,
+});
+
+await replaceCoursesFromAlbert({
+	courses: [course("new-a"), course("new-b")],
+	activeTerm,
+});
+assert.deepEqual((await getCourses())[0].components[0], {
+	...course("new-a").components[0],
+	days: ["Tue", "Thu"],
+	timeRange: {
+		start: { hours: 14, minutes: 30 },
+		end: { hours: 15, minutes: 45 },
+	},
+	room: "WWH 101",
+	isTBA: false,
+	manualSchedule: true,
+});
+
 console.log(
-	"Course storage tests passed: replace, clear, buckets, professor ratings",
+	"Course storage tests passed: replace, clear, buckets, ratings, schedule override",
 );

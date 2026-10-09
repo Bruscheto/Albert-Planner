@@ -882,10 +882,11 @@ body.layout-drawer .popup-container {
 .course-metadata-drawer-body {
 	flex: 1;
 	overflow-y: auto;
-	padding: 18px 20px 24px;
+	overflow-x: hidden;
+	padding: 16px 16px 24px;
 	display: flex;
 	flex-direction: column;
-	gap: 16px;
+	gap: 10px;
 }
 
 body.metadata-drawer-open .course-metadata-backdrop {

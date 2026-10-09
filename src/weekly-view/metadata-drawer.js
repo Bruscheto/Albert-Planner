@@ -15,7 +15,10 @@ import {
 	setActiveMetadataCourse,
 	setMetadataDrawerInert,
 } from "./runtime.js";
-import { assignCourseToBucket } from "../storage/course-storage.js";
+import {
+	assignCourseToBucket,
+	updateCourseComponentSchedule,
+} from "../storage/course-storage.js";
 import { renderCourseMetadataContent } from "../metadata/course-metadata-panel.js";
 import { findConflicts } from "../shared/calendar-utils.js";
 import { isCourseOnline } from "./colors.js";
@@ -100,6 +103,11 @@ export function renderCourseMetadataDrawer() {
 				bucketId ? "Course bucket updated" : "Course moved to Unsorted",
 				"success",
 			);
+			await reloadSchedule();
+		},
+		onScheduleSave: async (componentIndex, schedule) => {
+			await updateCourseComponentSchedule(course.id, componentIndex, schedule);
+			showToast("Course schedule updated", "success");
 			await reloadSchedule();
 		},
 	});

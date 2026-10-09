@@ -9,7 +9,7 @@ export default defineConfig({
 	manifestVersion: 3,
 	manifest: {
 		name: "Albert Planner",
-		version: "1.1",
+		version: "1.2",
 		description:
 			"Turn your Albert shopping cart into a weekly calendar with professor ratings and conflict detection.",
 		permissions: [

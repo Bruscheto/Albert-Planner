@@ -7,6 +7,7 @@ import {
 	getProfessorRatings,
 	replaceCoursesFromAlbert,
 	clearCourseData,
+	updateCourseComponentSchedule,
 } from "../storage/course-storage.js";
 import { analyzeSchedule } from "../planner/planner.js";
 import { renderBuckets } from "./bucket-manager.js";
@@ -155,6 +156,14 @@ import {
 					return;
 				}
 				await assignCourseToBucket(course.id, bucketId);
+				await loadData();
+			},
+			onScheduleSave: async (componentIndex, schedule) => {
+				await updateCourseComponentSchedule(
+					course.id,
+					componentIndex,
+					schedule,
+				);
 				await loadData();
 			},
 		});
