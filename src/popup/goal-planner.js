@@ -152,10 +152,11 @@ export function mountGoalPlanner(root) {
 	const goalStatus = h("p", { class: "goal-status", role: "status", "aria-live": "polite" });
 	const proposalArea = h("div", { class: "goal-proposal-area" });
 	const notesArea = h("div", { class: "goal-notes-area" });
+	const goalLabel = h("label", { for: "goal-text", class: "goal-label" }, "describe what you want");
 	const goalForm = h(
 		"form",
 		{ class: "goal-box", onsubmit: onGoalSubmit },
-		h("label", { for: "goal-text", class: "goal-label" }, "describe what you want"),
+		goalLabel,
 		goalInput,
 		h("div", { class: "goal-actions" }, availabilityLine, goalSubmit),
 		downloadRow,
@@ -278,18 +279,26 @@ export function mountGoalPlanner(root) {
 			available: "runs on this device · goal text never leaves it",
 			downloadable: "needs Chrome's on-device model, a one-time download",
 			downloading: "downloading the on-device model…",
-			unavailable: "on-device AI isn't supported on this computer · use the rules below",
-			unsupported: "this Chrome has no built-in AI (Chrome 138+) · use the rules below",
+			unavailable: "Describing goals needs Chrome's on-device AI, which this computer doesn't support. Set rules below; the schedule search works the same.",
+			unsupported: "Describing goals needs Chrome's built-in AI (desktop Chrome 138 or later). Set rules below; the schedule search works the same.",
 		};
-		availabilityLine.textContent = messages[state.availability] ?? messages.unavailable;
-		availabilityLine.dataset.state = state.availability;
+		const shown = messages[state.availability] ? state.availability : "unavailable";
+		availabilityLine.textContent = messages[shown];
+		availabilityLine.dataset.state = shown;
+		// Without a model the box collapses to one explanatory line instead of
+		// showing a text field that can never be used.
+		const noModel = shown === "unavailable" || shown === "unsupported";
+		goalForm.classList.toggle("is-collapsed", noModel);
+		goalLabel.hidden = noModel;
+		goalInput.hidden = noModel;
+		goalSubmit.hidden = noModel || shown === "downloadable" || shown === "downloading";
 
 		downloadRow.replaceChildren();
 		downloadRow.hidden = !["downloadable", "downloading"].includes(state.availability);
 		if (state.availability === "downloadable") {
 			downloadRow.append(
 				h("p", { class: "goal-download-note" }, "Chrome downloads the model once (several GB; it needs plenty of free disk). Nothing starts until you click."),
-				h("button", { type: "button", class: "btn-secondary goal-download-btn", onclick: onDownload }, "download on-device model"),
+				h("button", { type: "button", class: "btn-primary goal-download-btn", onclick: onDownload }, "download on-device model"),
 			);
 		} else if (state.availability === "downloading") {
 			const percent = Math.round((state.downloadProgress ?? 0) * 100);
@@ -303,8 +312,10 @@ export function mountGoalPlanner(root) {
 	}
 
 	function updateGoalControls() {
+		// The goal can be written while the model downloads; it can only be
+		// sent once the model is ready.
 		const ready = state.availability === "available";
-		goalInput.disabled = !ready;
+		goalInput.disabled = state.availability === "checking";
 		goalSubmit.disabled = !ready || goalSubmit.dataset.busy === "true";
 	}
 
@@ -325,6 +336,9 @@ export function mountGoalPlanner(root) {
 		}
 		downloadInFlight = false;
 		await refreshAvailability();
+		if (state.availability === "available") {
+			setGoalStatus(goalInput.value.trim() ? "The model is ready. Propose rules when you're set." : "The model is ready. Describe what you want.", "info");
+		}
 	}
 
 	// ---- Goal interpretation ----------------------------------------------
@@ -345,7 +359,11 @@ export function mountGoalPlanner(root) {
 
 	async function onGoalSubmit(event) {
 		event.preventDefault();
-		if (state.availability !== "available" || !state.constraints) return;
+		if (!state.constraints) return;
+		if (state.availability !== "available") {
+			setGoalStatus(state.availability === "downloading" ? "The model is still downloading. Your goal will be ready to send when it finishes." : "Download the on-device model first, or set rules below.", "info");
+			return;
+		}
 		const goalText = goalInput.value.trim();
 		if (!goalText) {
 			setGoalStatus("Describe a goal first.", "error");
@@ -703,10 +721,23 @@ export function mountGoalPlanner(root) {
 			children.push(h("p", { class: "options-banner options-banner--stale", id: "options-stale-note", role: "status" }, "Your cart or rules changed since these options were made. Generate again to apply one."));
 		}
 		if (result.status === "required-failed") {
+			const failedId = result.failure.courseId;
+			const canRelax = !options.stale && state.constraints?.lockedCourseIds.includes(failedId);
 			children.push(h("div", { class: "options-failure", role: "alert" },
 				h("p", { class: "options-failure-title" }, "// a required course can't fit"),
 				h("p", {}, describeFailure(result.failure, courses, result.constraints)),
-				h("p", { class: "options-failure-hint" }, "Change that course to “maybe” or relax the rule that blocks it.")));
+				h("p", { class: "options-failure-hint" }, "Change that course to “maybe” or relax the rule that blocks it."),
+				canRelax
+					? h("div", { class: "option-actions" },
+						h("button", {
+							type: "button",
+							class: "btn-secondary",
+							onclick: async () => {
+								await updateRules({ lockedCourseIds: state.constraints.lockedCourseIds.filter((id) => id !== failedId) });
+								onGenerate();
+							},
+						}, "make it “maybe” and search again"))
+					: null));
 			optionsArea.replaceChildren(...children);
 			return;
 		}
@@ -753,7 +784,7 @@ export function mountGoalPlanner(root) {
 					h("span", { class: "option-course-title", title: course.title }, course.title),
 					h("span", { class: "option-course-credits" }, `${course.credits} cr`)))),
 			h("details", { class: "option-why" },
-				h("summary", {}, h("span", {}, "why"), h("span", { class: "option-why-counts" }, `${picked.length} in${skipped ? ` · ${skipped} out` : ""}${unknown ? ` · ${unknown} unknown` : ""}`)),
+				h("summary", {}, h("span", {}, "why"), " ", h("span", { class: "option-why-counts" }, `${picked.length} in${skipped ? ` · ${skipped} out` : ""}${unknown ? ` · ${unknown} unknown` : ""}`)),
 				renderWhyList(entries, courses)),
 			h("div", { class: "option-actions" },
 				h("button", {

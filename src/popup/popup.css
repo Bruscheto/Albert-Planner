@@ -1152,6 +1152,18 @@ body.metadata-drawer-open .course-metadata-drawer {
 	margin-left: auto;
 }
 
+.goal-box.is-collapsed {
+	background: var(--surface-muted);
+	border-style: dashed;
+	border-color: var(--border-color);
+	box-shadow: none;
+}
+
+.goal-box.is-collapsed .goal-availability {
+	font-size: 11px;
+	line-height: 1.55;
+}
+
 .goal-download {
 	display: flex;
 	flex-direction: column;
@@ -1748,6 +1760,14 @@ body.metadata-drawer-open .course-metadata-drawer {
 
 .options-failure-hint {
 	color: var(--text-secondary);
+}
+
+.options-failure .btn-secondary {
+	flex: 0 1 auto;
+	min-width: 0;
+	white-space: normal;
+	text-align: left;
+	line-height: 1.45;
 }
 
 .options-empty {
