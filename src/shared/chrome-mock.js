@@ -17,6 +17,11 @@
 	if (!sharedStorage) return;
 
 	const ORIGIN = window.location.origin + "/";
+
+	// Harness demo stand-in for Chrome's built-in model (see test/fixtures).
+	if (!window.LanguageModel && window.parent.__demoLanguageModel) {
+		window.LanguageModel = window.parent.__demoLanguageModel;
+	}
 	const localListeners = [];
 	const channel = new BroadcastChannel("chrome-storage-sync");
 

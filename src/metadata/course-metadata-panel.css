@@ -1,6 +1,6 @@
 /* ── Empty State ── */
 .metadata-empty-state {
-	padding: 40px 24px;
+	padding: 48px 24px;
 	text-align: center;
 }
 
@@ -17,87 +17,719 @@
 	color: var(--text-secondary);
 }
 
-/* ── Summary ── */
-.metadata-summary {
-	display: flex;
-	flex-direction: column;
-	gap: 6px;
+/* ── Card base ── */
+.metadata-card {
+	background: var(--card-bg-solid);
+	border: 1px solid var(--border-color);
+	border-radius: var(--radius-md);
+	padding: 16px 18px;
+	box-shadow: var(--shadow-sm);
+}
+
+.metadata-card-label {
+	display: block;
+	font-family: var(--font-mono);
+	font-size: 10px;
+	font-weight: 600;
+	letter-spacing: 0.1em;
+	text-transform: uppercase;
+	color: var(--text-muted);
+	margin-bottom: 12px;
+}
+
+/* ── Header card ── */
+.metadata-header {
+	padding: 20px 18px 16px;
 }
 
 .metadata-headline {
 	display: flex;
-	align-items: baseline;
+	align-items: flex-start;
 	justify-content: space-between;
-	gap: 10px;
+	gap: 12px;
+	margin-bottom: 6px;
 }
 
 .metadata-course-code {
 	font-family: var(--font-mono);
-	font-size: 22px;
-	font-weight: 600;
+	font-size: 24px;
+	font-weight: 700;
 	line-height: 1.1;
-	letter-spacing: -0.03em;
+	letter-spacing: -0.04em;
 	color: var(--text-primary);
 }
 
 .metadata-course-section {
 	font-weight: 400;
+	font-size: 0.7em;
 	color: var(--text-secondary);
 }
 
 .metadata-credit-pill {
 	flex-shrink: 0;
-	padding: 3px 9px;
+	padding: 4px 10px;
 	border-radius: 999px;
 	font-family: var(--font-mono);
-	font-size: 10px;
-	font-weight: 500;
+	font-size: 11px;
+	font-weight: 600;
 	color: var(--nyu-purple);
-	background: transparent;
-	border: 1px solid rgba(87, 6, 140, 0.22);
-	letter-spacing: 0.1em;
-	text-transform: uppercase;
+	background: var(--purple-50);
+	border: 1px solid var(--purple-100);
 	font-variant-numeric: tabular-nums;
-	align-self: flex-start;
+	margin-top: 2px;
 }
 
 .metadata-course-title {
 	font-family: var(--font-display);
-	font-size: 17px;
-	line-height: 1.3;
+	font-size: 15px;
+	line-height: 1.45;
 	font-weight: 500;
-	letter-spacing: -0.02em;
+	letter-spacing: -0.01em;
 	color: var(--text-primary);
+	margin-bottom: 12px;
 }
 
-.metadata-meta-line {
+/* ── Status Tags ── */
+.metadata-status-tags {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+}
+
+.metadata-status-tag {
+	display: inline-flex;
+	align-items: center;
+	padding: 4px 10px;
+	border-radius: 6px;
 	font-family: var(--font-mono);
-	font-size: 11px;
-	line-height: 1.6;
-	letter-spacing: 0.01em;
-	color: var(--text-secondary);
-	margin-top: 4px;
-	font-variant-numeric: tabular-nums;
+	font-size: 10px;
+	font-weight: 600;
+	line-height: 1.4;
+	letter-spacing: 0.04em;
 }
 
-.metadata-location-line {
-	font-family: var(--font-mono);
-	font-size: 11px;
-	line-height: 1.6;
-	letter-spacing: 0.01em;
-	color: var(--text-secondary);
-	margin-top: 2px;
+.metadata-status-tag.status-scheduled {
+	background: rgba(16, 185, 129, 0.1);
+	color: #047857;
 }
 
-/* ── Instructor ── */
+.metadata-status-tag.status-neutral {
+	background: var(--surface-muted);
+	color: var(--text-muted);
+}
+
+.metadata-status-tag.status-online {
+	background: rgba(3, 105, 161, 0.09);
+	color: #0369a1;
+}
+
+.metadata-status-tag.status-conflict {
+	background: rgba(239, 68, 68, 0.09);
+	color: #b91c1c;
+}
+
+.metadata-status-tag.status-warn {
+	background: rgba(245, 158, 11, 0.1);
+	color: #b45309;
+}
+
+/* ── Instructor Line ── */
 .metadata-instructor-line {
 	display: flex;
 	flex-direction: column;
 	align-items: flex-start;
-	gap: 5px;
-	margin-top: 2px;
+	gap: 10px;
 }
 
+/* ── Schedule list ── */
+.metadata-schedule-list {
+	display: flex;
+	flex-direction: column;
+}
+
+.metadata-schedule-item {
+	position: relative;
+	padding: 10px 0;
+}
+
+.metadata-schedule-item + .metadata-schedule-item {
+	border-top: 1px solid var(--border-color);
+}
+
+.metadata-schedule-row {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+}
+
+.metadata-schedule-type {
+	flex-shrink: 0;
+	width: 36px;
+	padding: 4px 0;
+	border-radius: 6px;
+	background: var(--purple-50);
+	font-family: var(--font-mono);
+	font-size: 9px;
+	font-weight: 700;
+	letter-spacing: 0.06em;
+	text-align: center;
+	color: var(--nyu-purple);
+}
+
+.metadata-schedule-details {
+	flex: 1;
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.metadata-meta-line {
+	display: block;
+	font-family: var(--font-mono);
+	font-size: 13px;
+	line-height: 1.5;
+	color: var(--text-primary);
+	font-weight: 500;
+	margin: 0;
+	font-variant-numeric: tabular-nums;
+}
+
+.metadata-location-line {
+	display: block;
+	font-family: var(--font-mono);
+	font-size: 11px;
+	line-height: 1.4;
+	color: var(--text-muted);
+	margin: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.metadata-schedule-empty {
+	padding: 4px 0;
+	color: var(--text-secondary);
+}
+
+.metadata-schedule-edit-btn {
+	flex-shrink: 0;
+	width: 30px;
+	height: 30px;
+	border: 0;
+	background: transparent;
+	border-radius: 8px;
+	display: grid;
+	place-items: center;
+	color: var(--text-muted);
+	cursor: pointer;
+	opacity: 0;
+	transition: opacity 0.15s ease, background-color 0.15s ease, color 0.15s ease;
+}
+
+.metadata-schedule-edit-btn svg {
+	width: 14px;
+	height: 14px;
+}
+
+.metadata-schedule-item:hover .metadata-schedule-edit-btn,
+.metadata-schedule-edit-btn:focus-visible {
+	opacity: 1;
+}
+
+.metadata-schedule-edit-btn:hover {
+	background: var(--purple-50);
+	color: var(--nyu-purple);
+}
+
+.metadata-schedule-edit-btn:focus-visible {
+	outline: 2px solid var(--nyu-purple);
+	outline-offset: 2px;
+}
+
+.metadata-schedule-item.is-editing .metadata-schedule-edit-btn {
+	opacity: 1;
+	background: var(--purple-50);
+	color: var(--nyu-purple);
+}
+
+/* ── Inline schedule editor ── */
+.metadata-schedule-editor {
+	display: grid;
+	grid-template-rows: 0fr;
+	transition: grid-template-rows 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.metadata-schedule-item.is-editing .metadata-schedule-editor {
+	grid-template-rows: 1fr;
+}
+
+.metadata-schedule-editor-inner {
+	min-height: 0;
+	overflow: hidden;
+}
+
+.metadata-schedule-form {
+	display: flex;
+	flex-direction: column;
+	gap: 14px;
+	padding: 14px 0 6px;
+}
+
+.metadata-editor-field {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.metadata-editor-label {
+	font-family: var(--font-mono);
+	font-size: 10px;
+	font-weight: 600;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	color: var(--text-muted);
+}
+
+/* Day chips */
+.metadata-editor-days {
+	display: flex;
+	gap: 6px;
+}
+
+.metadata-day-chip {
+	position: relative;
+}
+
+.metadata-day-chip input {
+	position: absolute;
+	opacity: 0;
+	pointer-events: none;
+}
+
+.metadata-day-chip span {
+	display: grid;
+	place-items: center;
+	width: 32px;
+	height: 32px;
+	border: 1px solid var(--border-color);
+	border-radius: 8px;
+	font-family: var(--font-mono);
+	font-size: 11px;
+	font-weight: 600;
+	cursor: pointer;
+	color: var(--text-secondary);
+	background: var(--card-bg-solid);
+	transition:
+		border-color 0.15s ease,
+		background-color 0.15s ease,
+		color 0.15s ease;
+}
+
+.metadata-day-chip:hover span {
+	border-color: var(--purple-200);
+	color: var(--text-primary);
+}
+
+.metadata-day-chip input:checked + span {
+	border-color: var(--nyu-purple);
+	background: var(--nyu-purple);
+	color: white;
+}
+
+.metadata-day-chip input:focus-visible + span {
+	outline: 2px solid var(--nyu-purple);
+	outline-offset: 2px;
+}
+
+/* Time & location inputs */
+.metadata-editor-time-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.metadata-editor-time-sep {
+	color: var(--text-muted);
+	font-size: 13px;
+	flex-shrink: 0;
+}
+
+/* ── Time picker ── */
+.metadata-time-picker {
+	position: relative;
+	flex: 1;
+	min-width: 0;
+}
+
+.metadata-time-trigger {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	width: 100%;
+	height: 38px;
+	border: 1px solid var(--border-color);
+	border-radius: 8px;
+	background: var(--card-bg-solid);
+	padding: 0 12px;
+	font-family: var(--font-mono);
+	font-size: 13px;
+	font-weight: 500;
+	color: var(--text-primary);
+	cursor: pointer;
+	transition:
+		border-color 0.15s ease,
+		box-shadow 0.15s ease;
+}
+
+.metadata-time-trigger:hover {
+	border-color: var(--purple-200);
+	background: var(--purple-50);
+}
+
+.metadata-time-picker.is-open .metadata-time-trigger {
+	border-color: var(--nyu-purple);
+	box-shadow: 0 0 0 3px var(--purple-50);
+}
+
+.metadata-time-trigger:focus-visible {
+	outline: 2px solid var(--nyu-purple);
+	outline-offset: 2px;
+}
+
+.metadata-time-icon {
+	width: 13px;
+	height: 13px;
+	flex-shrink: 0;
+	color: var(--text-muted);
+}
+
+.metadata-time-text {
+	flex: 1;
+	text-align: left;
+	font-variant-numeric: tabular-nums;
+}
+
+.metadata-time-text.is-empty {
+	color: var(--text-muted);
+}
+
+.metadata-time-chevron {
+	width: 14px;
+	height: 14px;
+	flex-shrink: 0;
+	color: var(--text-muted);
+	transition: transform 0.2s ease;
+}
+
+.metadata-time-picker.is-open .metadata-time-chevron {
+	transform: rotate(180deg);
+}
+
+/* Dropdown lives on <body> and is fixed-positioned from the trigger's
+   viewport rect, so it escapes overflow-clipping (editor, cards, scrollable
+   drawer body) and transform-containing ancestors (the centered drawer). */
+.metadata-time-dropdown {
+	position: fixed;
+	top: 0;
+	left: 0;
+	z-index: 120;
+	box-sizing: border-box;
+	background: var(--card-bg-solid);
+	border: 1px solid var(--border-color);
+	border-radius: 12px;
+	box-shadow: var(--shadow-lg);
+	padding: 10px;
+	opacity: 0;
+	transform: scale(0.98);
+	transform-origin: top center;
+	transition:
+		opacity 0.18s ease,
+		transform 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.metadata-time-dropdown.opens-up {
+	transform-origin: bottom center;
+}
+
+.metadata-time-dropdown[hidden] {
+	display: block;
+	visibility: hidden;
+	pointer-events: none;
+}
+
+.metadata-time-dropdown.is-open {
+	opacity: 1;
+	transform: scale(1);
+	visibility: visible;
+	pointer-events: auto;
+}
+
+/* Typed input row */
+.metadata-time-typed {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding-bottom: 10px;
+	margin-bottom: 6px;
+	border-bottom: 1px solid var(--border-color);
+}
+
+.metadata-time-input {
+	width: 42px;
+	height: 34px;
+	border: 1px solid var(--border-color);
+	border-radius: 7px;
+	background: var(--card-bg-solid);
+	font-family: var(--font-mono);
+	font-size: 13px;
+	font-weight: 600;
+	text-align: center;
+	color: var(--text-primary);
+	transition:
+		border-color 0.12s ease,
+		box-shadow 0.12s ease;
+}
+
+.metadata-time-input:focus {
+	outline: none;
+	border-color: var(--nyu-purple);
+	box-shadow: 0 0 0 3px var(--purple-50);
+}
+
+.metadata-time-input::placeholder {
+	color: var(--text-muted);
+	font-weight: 400;
+}
+
+.metadata-time-colon {
+	font-family: var(--font-mono);
+	font-size: 13px;
+	font-weight: 600;
+	color: var(--text-muted);
+	flex-shrink: 0;
+}
+
+.metadata-time-period {
+	display: flex;
+	gap: 2px;
+	margin-left: auto;
+	background: var(--surface-muted);
+	border-radius: 7px;
+	padding: 2px;
+}
+
+.metadata-time-period-btn {
+	height: 30px;
+	padding: 0 10px;
+	border: none;
+	border-radius: 5px;
+	background: transparent;
+	font-family: var(--font-mono);
+	font-size: 10px;
+	font-weight: 600;
+	letter-spacing: 0.04em;
+	color: var(--text-secondary);
+	cursor: pointer;
+	transition:
+		background-color 0.12s ease,
+		color 0.12s ease;
+}
+
+.metadata-time-period-btn:hover {
+	color: var(--text-primary);
+}
+
+.metadata-time-period-btn.is-active {
+	background: var(--card-bg-solid);
+	color: var(--nyu-purple);
+	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.metadata-time-period-btn:focus-visible {
+	outline: 2px solid var(--nyu-purple);
+	outline-offset: 2px;
+}
+
+/* Scrollable time list (max-height set by JS based on viewport space) */
+.metadata-time-list {
+	max-height: 176px;
+	overflow-y: auto;
+	overscroll-behavior: contain;
+	scrollbar-width: thin;
+	scrollbar-color: var(--purple-200) transparent;
+}
+
+.metadata-time-list::-webkit-scrollbar {
+	width: 6px;
+}
+
+.metadata-time-list::-webkit-scrollbar-thumb {
+	background: var(--purple-200);
+	border-radius: 3px;
+}
+
+.metadata-time-option {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	width: 100%;
+	padding: 7px 10px;
+	border: none;
+	border-radius: 7px;
+	background: transparent;
+	font-family: var(--font-mono);
+	font-size: 12px;
+	font-weight: 500;
+	color: var(--text-primary);
+	cursor: pointer;
+	text-align: left;
+	transition:
+		background-color 0.1s ease,
+		color 0.1s ease;
+}
+
+.metadata-time-option:hover {
+	background: var(--purple-50);
+}
+
+.metadata-time-option-value {
+	font-variant-numeric: tabular-nums;
+}
+
+.metadata-time-option-period {
+	font-size: 9px;
+	font-weight: 600;
+	letter-spacing: 0.08em;
+	color: var(--text-muted);
+}
+
+.metadata-time-option:hover .metadata-time-option-period {
+	color: var(--nyu-purple);
+}
+
+.metadata-time-option.is-selected {
+	background: var(--nyu-purple);
+	color: white;
+	font-weight: 600;
+}
+
+.metadata-time-option.is-selected .metadata-time-option-period {
+	color: rgba(255, 255, 255, 0.75);
+}
+
+.metadata-time-option:focus-visible {
+	outline: 2px solid var(--nyu-purple);
+	outline-offset: -2px;
+}
+
+.metadata-editor-input {
+	flex: 1;
+	min-width: 0;
+	height: 36px;
+	border: 1px solid var(--border-color);
+	border-radius: 8px;
+	background: var(--card-bg-solid);
+	padding: 0 10px;
+	font-family: var(--font-mono);
+	font-size: 12px;
+	color: var(--text-primary);
+	transition:
+		border-color 0.15s ease,
+		box-shadow 0.15s ease;
+}
+
+.metadata-editor-input:focus {
+	outline: none;
+	border-color: var(--nyu-purple);
+	box-shadow: 0 0 0 3px var(--purple-50);
+}
+
+.metadata-editor-input--full {
+	width: 100%;
+	flex: none;
+}
+
+/* Actions */
+.metadata-editor-actions {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 10px;
+	padding-top: 2px;
+}
+
+.metadata-editor-status {
+	font-family: var(--font-mono);
+	font-size: 11px;
+	color: var(--text-muted);
+}
+
+.metadata-editor-status.is-error {
+	color: #b91c1c;
+}
+
+.metadata-editor-buttons {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.metadata-editor-btn {
+	height: 32px;
+	border: 0;
+	border-radius: 7px;
+	padding: 0 14px;
+	font-family: var(--font-display);
+	font-size: 12px;
+	font-weight: 600;
+	cursor: pointer;
+	transition:
+		background-color 0.15s ease,
+		color 0.15s ease,
+		transform 0.1s ease;
+}
+
+.metadata-editor-btn:active {
+	transform: scale(0.97);
+}
+
+.metadata-editor-btn--ghost {
+	background: transparent;
+	color: var(--text-secondary);
+}
+
+.metadata-editor-btn--ghost:hover {
+	background: var(--surface-muted);
+	color: var(--text-primary);
+}
+
+.metadata-editor-btn--primary {
+	background: var(--nyu-purple);
+	color: white;
+}
+
+.metadata-editor-btn--primary:hover {
+	background: var(--nyu-purple-hover);
+}
+
+.metadata-editor-btn--primary:disabled {
+	opacity: 0.6;
+	cursor: wait;
+}
+
+.metadata-editor-btn:focus-visible {
+	outline: 2px solid var(--nyu-purple);
+	outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.metadata-schedule-editor,
+	.metadata-time-dropdown {
+		transition: none;
+	}
+}
+/* ── Instructor trigger ── */
 .metadata-instructor-trigger {
 	border: 0;
 	padding: 0;
@@ -425,234 +1057,159 @@
 	}
 }
 
-/* ── Status Tags ── */
-.metadata-status-tags {
-	display: flex;
-	flex-wrap: wrap;
-	gap: 6px;
-	margin-top: 6px;
+/* ── Bucket picker (dropdown) ── */
+.metadata-bucket-card {
+	overflow: visible;
 }
 
-.metadata-status-tag {
-	display: inline-flex;
+.metadata-bucket-picker {
+	position: relative;
+}
+
+.metadata-bucket-trigger {
+	display: flex;
 	align-items: center;
-	padding: 3px 10px;
-	border-radius: 999px;
-	font-family: var(--font-mono);
-	font-size: 10px;
-	font-weight: 500;
-	line-height: 1.4;
-	letter-spacing: 0.06em;
-	text-transform: uppercase;
-}
-
-.metadata-status-tag.status-scheduled {
-	background: rgba(16, 185, 129, 0.08);
-	color: #059669;
-}
-
-.metadata-status-tag.status-neutral {
-	background: rgba(107, 114, 128, 0.08);
-	color: #6b7280;
-}
-
-.metadata-status-tag.status-online {
-	background: rgba(3, 105, 161, 0.08);
-	color: #0369a1;
-}
-
-.metadata-status-tag.status-ok {
-	background: rgba(16, 185, 129, 0.08);
-	color: #059669;
-}
-
-.metadata-status-tag.status-conflict {
-	background: rgba(239, 68, 68, 0.08);
-	color: #dc2626;
-}
-
-.metadata-status-tag.status-warn {
-	background: rgba(245, 158, 11, 0.08);
-	color: #b45309;
-}
-
-/* ── Divider ── */
-.metadata-divider {
-	border: none;
-	height: 1px;
-	background: var(--border-color);
-	margin: 0;
-}
-
-/* ── Bucket Section (flat, no card) ── */
-.metadata-section-heading {
-	font-family: var(--font-mono);
-	font-size: 10px;
-	font-weight: 500;
-	letter-spacing: 0.15em;
-	text-transform: uppercase;
-	color: var(--text-secondary);
-}
-
-.metadata-section-copy {
-	font-size: 13px;
-	line-height: 1.5;
-	color: var(--text-secondary);
-	margin-top: 2px;
-}
-
-.metadata-bucket-list {
-	display: flex;
-	flex-direction: column;
-	gap: 5px;
-	margin-top: 10px;
-}
-
-.metadata-bucket-option {
+	gap: 8px;
 	width: 100%;
-	border: none;
+	border: 1px solid var(--border-color);
 	border-radius: 8px;
-	background: transparent;
-	padding: 8px 10px;
-	display: flex;
-	align-items: center;
-	gap: 10px;
-	text-align: left;
+	background: var(--card-bg-solid);
+	padding: 9px 12px;
 	cursor: pointer;
 	transition:
-		background-color 0.24s cubic-bezier(0.22, 1, 0.36, 1),
-		transform 0.24s cubic-bezier(0.22, 1, 0.36, 1),
-		box-shadow 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+		border-color 0.15s ease,
+		box-shadow 0.15s ease;
 }
 
-.metadata-bucket-option:hover {
-	background: rgba(87, 6, 140, 0.035);
-	transform: translateX(2px);
+.metadata-bucket-trigger:hover {
+	border-color: var(--purple-200);
 }
 
-.metadata-bucket-option:active {
-	transform: translateX(2px) scale(0.995);
-	transition-duration: 0.08s;
+.metadata-bucket-picker.is-open .metadata-bucket-trigger {
+	border-color: var(--nyu-purple);
+	box-shadow: 0 0 0 3px var(--purple-50);
 }
 
-.metadata-bucket-option.is-active {
-	background: rgba(87, 6, 140, 0.07);
-}
-
-.metadata-bucket-option.is-active:hover {
-	background: rgba(87, 6, 140, 0.09);
-}
-
-.metadata-bucket-option .metadata-bucket-name {
-	transition: color 0.24s cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-.metadata-bucket-option.is-active .metadata-bucket-name {
-	color: var(--nyu-purple);
-}
-
-.metadata-bucket-option:focus-visible {
+.metadata-bucket-trigger:focus-visible {
 	outline: 2px solid var(--nyu-purple);
 	outline-offset: 2px;
 }
 
 .metadata-bucket-dot {
-	width: 10px;
-	height: 10px;
+	width: 8px;
+	height: 8px;
 	border-radius: 999px;
 	flex-shrink: 0;
-	transition:
-		transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
-		box-shadow 0.24s ease;
+	background: var(--text-muted);
 }
 
-.metadata-bucket-option:hover .metadata-bucket-dot {
-	transform: scale(1.12);
-}
-
-.metadata-bucket-option.is-active .metadata-bucket-dot {
-	box-shadow: 0 0 0 2px rgba(87, 6, 140, 0.08);
-	opacity: 0.85;
-}
-
-.metadata-bucket-copy {
-	display: flex;
-	flex-direction: column;
-	gap: 1px;
+.metadata-bucket-trigger-name {
 	flex: 1;
-	min-width: 0;
-}
-
-.metadata-bucket-name {
 	font-family: var(--font-display);
 	font-size: 13px;
 	font-weight: 500;
-	letter-spacing: -0.01em;
+	color: var(--text-primary);
+	text-align: left;
+}
+
+.metadata-bucket-trigger-chevron {
+	width: 14px;
+	height: 14px;
+	flex-shrink: 0;
+	color: var(--text-muted);
+	transition: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.metadata-bucket-picker.is-open .metadata-bucket-trigger-chevron {
+	transform: rotate(180deg);
+}
+
+.metadata-bucket-menu {
+	position: absolute;
+	bottom: calc(100% + 6px);
+	left: 0;
+	right: 0;
+	z-index: 50;
+	background: var(--card-bg-solid);
+	border: 1px solid var(--border-color);
+	border-radius: 10px;
+	box-shadow: var(--shadow-lg);
+	padding: 5px;
+	display: flex;
+	flex-direction: column;
+	gap: 1px;
+	opacity: 0;
+	transform: translateY(4px) scale(0.98);
+	transform-origin: bottom center;
+	visibility: hidden;
+	pointer-events: none;
+	transition:
+		opacity 0.15s ease,
+		transform 0.2s cubic-bezier(0.22, 1, 0.36, 1),
+		visibility 0s linear 0.2s;
+}
+
+.metadata-bucket-picker.is-open .metadata-bucket-menu {
+	opacity: 1;
+	transform: translateY(0) scale(1);
+	visibility: visible;
+	pointer-events: auto;
+	transition:
+		opacity 0.15s ease,
+		transform 0.2s cubic-bezier(0.22, 1, 0.36, 1),
+		visibility 0s linear 0s;
+}
+
+.metadata-bucket-option {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	width: 100%;
+	border: none;
+	border-radius: 7px;
+	background: transparent;
+	padding: 8px 10px;
+	cursor: pointer;
+	text-align: left;
+	transition: background-color 0.12s ease;
+}
+
+.metadata-bucket-option:hover {
+	background: var(--surface-muted);
+}
+
+.metadata-bucket-option.is-active {
+	background: var(--purple-50);
+}
+
+.metadata-bucket-option:focus-visible {
+	outline: 2px solid var(--nyu-purple);
+	outline-offset: -2px;
+}
+
+.metadata-bucket-name {
+	flex: 1;
+	font-family: var(--font-display);
+	font-size: 13px;
+	font-weight: 500;
 	color: var(--text-primary);
 }
 
-.metadata-bucket-helper {
-	font-size: 11px;
-	line-height: 1.4;
-	color: var(--text-secondary);
+.metadata-bucket-option.is-active .metadata-bucket-name {
+	font-weight: 600;
 }
 
-.metadata-bucket-indicator {
-	width: 16px;
-	height: 16px;
-	border-radius: 999px;
-	border: 1.2px solid rgba(87, 6, 140, 0.22);
+.metadata-bucket-check {
+	width: 14px;
+	height: 14px;
 	flex-shrink: 0;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	transition:
-		border-color 0.28s cubic-bezier(0.34, 1.56, 0.64, 1),
-		background-color 0.28s cubic-bezier(0.34, 1.56, 0.64, 1),
-		transform 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-
-.metadata-bucket-option:hover .metadata-bucket-indicator {
-	border-color: rgba(87, 6, 140, 0.45);
-}
-
-.metadata-bucket-indicator::after {
-	content: "";
-	width: 12px;
-	height: 12px;
-	border-radius: 999px;
-	background: white;
-	opacity: 0;
-	transform: scale(0.2);
-	transition:
-		opacity 0.22s ease,
-		transform 0.32s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-
-.metadata-bucket-option.is-active .metadata-bucket-indicator {
-	border-color: var(--nyu-purple);
-	background: var(--nyu-purple);
-	transform: scale(1.05);
-}
-
-.metadata-bucket-option.is-active .metadata-bucket-indicator::after {
-	opacity: 1;
-	transform: scale(1);
+	color: var(--nyu-purple);
 }
 
 @media (prefers-reduced-motion: reduce) {
 	.metadata-prof-insight-wrapper,
 	.metadata-prof-insight,
-	.metadata-bucket-option,
-	.metadata-bucket-option .metadata-bucket-name,
-	.metadata-bucket-dot,
-	.metadata-bucket-indicator,
-	.metadata-bucket-indicator::after {
+	.metadata-bucket-menu {
 		transition-duration: 0.01ms;
-	}
-	.metadata-bucket-option:hover,
-	.metadata-bucket-option:active,
-	.metadata-bucket-option:hover .metadata-bucket-dot {
-		transform: none;
 	}
 }

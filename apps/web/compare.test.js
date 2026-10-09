@@ -1,0 +1,14 @@
+import assert from 'node:assert/strict';
+import {comparePlans} from './compare.js';
+const course = {id:'a',courseCode:'CS',section:'1',title:'Algorithms',credits:4,components:[{type:'Lecture',days:['Mon'],timeRange:{start:{hours:10,minutes:0},end:{hours:11,minutes:0}},isTBA:false}]};
+const plan = {courses:[course],selection:['a']};
+assert.equal(comparePlans(plan,structuredClone(plan)).shared.length,1);
+const changed = structuredClone(plan); changed.courses[0].components[0].days=['Tue'];
+const diff=comparePlans(plan,changed);
+assert.equal(diff.onlyLeft.length,1); assert.equal(diff.onlyRight.length,1);
+assert.equal(diff.left.hours,1); assert.equal(diff.left.credits,4);
+assert.equal(comparePlans(plan,{...plan,selection:[]}).right.credits,0);
+changed.courses[0].components[0].isTBA=true;
+assert.equal(comparePlans(plan,changed).right.unknown,1);
+assert.equal(comparePlans(plan,changed).right.hours,0);
+console.log('Plan comparison checks passed');

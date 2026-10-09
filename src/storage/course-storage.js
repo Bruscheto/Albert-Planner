@@ -197,6 +197,39 @@ export async function saveCourse(course) {
 	await chrome.storage.local.set({ [STORAGE_KEYS.COURSES]: nextCourses });
 }
 
+export async function updateCourseComponentSchedule(
+	courseId,
+	componentIndex,
+	{ days, timeRange, room },
+) {
+	const courses = await getCourses();
+	const course = courses.find((item) => item.id === courseId);
+	assert(course, "Course not found");
+	assert(
+		Number.isInteger(componentIndex) && course.components[componentIndex],
+		"Course component not found",
+	);
+
+	const nextCourse = {
+		...course,
+		components: course.components.map((component, index) =>
+			index === componentIndex
+				? {
+						...component,
+						days: Array.from(new Set(days)),
+						timeRange,
+						room: String(room ?? "").trim(),
+						isTBA: !timeRange || days.length === 0,
+						manualSchedule: true,
+					}
+				: component,
+		),
+		updatedAt: Date.now(),
+	};
+	await saveCourse(nextCourse);
+	return nextCourse;
+}
+
 /**
  * Remove a course by ID
  * @param {string} courseId
@@ -345,20 +378,52 @@ export async function replaceCoursesFromAlbert({ courses, activeTerm = null }) {
 		validateCourse(courses[index]);
 	}
 
-	const courseIds = new Set(courses.map((course) => course.id));
+	const storedCourses = await getCourses();
+	const storedById = new Map(storedCourses.map((course) => [course.id, course]));
+	const nextCourses = courses.map((course) => {
+		const storedCourse = storedById.get(course.id);
+		if (!storedCourse) return course;
+
+		return {
+			...course,
+			components: course.components.map((component, index) => {
+				const storedComponent =
+					storedCourse.components.find(
+						(candidate) =>
+							candidate.manualSchedule &&
+							candidate.type === component.type &&
+							candidate.section === component.section,
+					) ||
+					(storedCourse.components[index]?.manualSchedule
+						? storedCourse.components[index]
+						: null);
+				if (!storedComponent) return component;
+				return {
+					...component,
+					days: storedComponent.days,
+					timeRange: storedComponent.timeRange,
+					room: storedComponent.room,
+					isTBA: storedComponent.isTBA,
+					manualSchedule: true,
+				};
+			}),
+		};
+	});
+
+	const courseIds = new Set(nextCourses.map((course) => course.id));
 	const plannerSelection = await getPlannerSelection();
 	const nextPlannerSelection = validatePlannerSelection(
 		plannerSelection.filter((id) => courseIds.has(id)),
 	);
 
 	await chrome.storage.local.set({
-		[STORAGE_KEYS.COURSES]: courses,
+		[STORAGE_KEYS.COURSES]: nextCourses,
 		[STORAGE_KEYS.PLANNER_SELECTION]: nextPlannerSelection,
 		[STORAGE_KEYS.ACTIVE_TERM]: activeTerm,
 	});
 
 	return {
-		courses,
+		courses: nextCourses,
 		plannerSelection: nextPlannerSelection,
 		activeTerm,
 	};

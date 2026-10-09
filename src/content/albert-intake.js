@@ -100,8 +100,17 @@ function getCellText(row, label, fallbackIndex) {
 			.replace(/[^a-z]/g, "");
 		return cellLabel.includes(normalizedLabel);
 	});
+	const cell = matchingCell || cells[fallbackIndex];
+	if (!cell) return "";
+
+	const instructorParts =
+		normalizedLabel === "instructor"
+			? Array.from(cell.children)
+					.map((child) => normalizeText(child.textContent))
+					.filter(Boolean)
+			: [];
 	return normalizeText(
-		(matchingCell || cells[fallbackIndex])?.textContent || "",
+		instructorParts.length > 1 ? instructorParts.join(" ") : cell.textContent,
 	);
 }
 

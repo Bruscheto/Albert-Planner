@@ -67,6 +67,7 @@
         .harness-body.calendar-only .frame-popup { display: none; }
         .harness-body.calendar-only .frame-calendar { display: block; }
     </style>
+    <script src="test/fixtures/demo-language-model.js"></script>
     <script>
     // MUST be in <head> so it runs BEFORE iframes load and execute chrome-mock.js
     const testTerm = {
@@ -210,7 +211,7 @@
         </div>
     </div>
     <div class="harness-body side-by-side" id="harness-body">
-        <iframe class="frame-popup" id="frame-popup" src="entrypoints/popup.html"></iframe>
+        <iframe class="frame-popup" id="frame-popup" src="entrypoints/popup.html?mode=sidepanel"></iframe>
         <iframe class="frame-calendar" id="frame-calendar" src="entrypoints/weekly-view.html"></iframe>
     </div>
 

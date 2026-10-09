@@ -7,6 +7,9 @@ const testScripts = [
 	"test:planner-session",
 	"test:weekly-schedule-model",
 	"test:rmp-matcher",
+	"test:schedule-search",
+	"test:goal-interpreter",
+	"test:planning-storage",
 ];
 
 const packageManagerExec = process.env.npm_execpath;

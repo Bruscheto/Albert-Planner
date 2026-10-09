@@ -1,6 +1,6 @@
 {
 	"name": "albert-planner",
-	"version": "1.1",
+	"version": "1.3",
 	"private": true,
 	"type": "module",
 	"packageManager": "pnpm@11.8.0",
@@ -8,6 +8,10 @@
 	"scripts": {
 		"build": "wxt build",
 		"dev": "wxt",
+		"dev:web": "node --env-file-if-exists=server/.env server/index.js",
+		"test:web": "node --test apps/web/*.test.js server/*.test.js",
+		"check:web-ai:live": "node --env-file-if-exists=server/.env server/live-check.js --live",
+		"test:web-ai": "node --test server/*.test.js apps/web/request-state.test.js",
 		"zip": "wxt zip",
 		"test": "node test/scripts/run-all.js",
 		"test:albert-intake": "node test/scripts/albert-intake.test.js",
@@ -15,7 +19,10 @@
 		"test:course-storage": "node test/scripts/course-storage.test.js",
 		"test:planner-session": "node test/scripts/planner-session.test.js",
 		"test:weekly-schedule-model": "node test/scripts/weekly-schedule-model.test.js",
-		"test:rmp-matcher": "node test/scripts/rmp-matcher.test.js"
+		"test:rmp-matcher": "node test/scripts/rmp-matcher.test.js",
+		"test:schedule-search": "node test/scripts/schedule-search.test.js",
+		"test:goal-interpreter": "node test/scripts/goal-interpreter.test.js",
+		"test:planning-storage": "node test/scripts/planning-storage.test.js"
 	},
 	"devDependencies": {
 		"wxt": "^0.20.26"

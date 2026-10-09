@@ -49,6 +49,11 @@
                 </div>
             </section>
 
+            <section class="popup-section goal-section" aria-labelledby="goal-heading">
+                <h2 class="popup-section-heading" id="goal-heading"><span class="popup-section-prefix" aria-hidden="true">//</span> plan with goals</h2>
+                <div id="goal-planner" class="goal-planner"></div>
+            </section>
+
             <section class="popup-section">
                 <h2 class="popup-section-heading"><span class="popup-section-prefix" aria-hidden="true">//</span> buckets</h2>
                 <div id="buckets-container" class="buckets-container">
@@ -76,7 +81,8 @@
 
         <footer class="popup-footer">
             <a href="#" id="link-help" class="popup-footer-link">why this exists</a>
-            <span class="popup-footer-version">v1.1</span>
+            <a href="#" id="link-feedback" class="popup-footer-link">send feedback</a>
+            <span class="popup-footer-version">v1.3</span>
         </footer>
 
         <div id="settings-panel" class="settings-panel hidden">
@@ -103,6 +109,30 @@
                         <input type="checkbox" id="setting-notifications">
                         <span class="toggle-label">Notifications</span>
                     </label>
+                </div>
+                <div class="setting-block" aria-labelledby="ai-check-heading">
+                    <h3 class="setting-block-title" id="ai-check-heading">// on-device AI check</h3>
+                    <p class="setting-block-note">Checks whether this computer can run the goal box and times one sample goal. It never starts a download.</p>
+                    <div class="setting-block-actions">
+                        <button id="btn-ai-check" type="button" class="btn-secondary">run check</button>
+                        <button id="btn-copy-ai-check" type="button" class="btn-secondary" hidden>copy result</button>
+                    </div>
+                    <pre id="ai-check-result" class="ai-check-result" role="status" aria-live="polite" hidden></pre>
+                </div>
+                <div class="setting-block" aria-labelledby="usage-heading">
+                    <h3 class="setting-block-title" id="usage-heading">// local usage counts</h3>
+                    <p class="setting-block-note">Kept only in this browser. Nothing is sent unless you copy it into feedback yourself.</p>
+                    <dl id="usage-counters" class="usage-counters"></dl>
+                    <div class="setting-block-actions">
+                        <button id="btn-copy-counters" type="button" class="btn-secondary">copy counts</button>
+                        <button id="btn-reset-counters" type="button" class="btn-secondary">reset</button>
+                    </div>
+                    <p id="usage-status" class="setting-block-status" role="status" aria-live="polite"></p>
+                    <label class="setting-toggle setting-toggle--inline">
+                        <input type="checkbox" id="feedback-include-counts">
+                        <span class="toggle-label">include these counts in feedback</span>
+                    </label>
+                    <button id="btn-send-feedback" type="button" class="btn-primary">send feedback</button>
                 </div>
             </div>
         </div>

@@ -7,6 +7,7 @@ import {
 	getProfessorRatings,
 	replaceCoursesFromAlbert,
 	clearCourseData,
+	updateCourseComponentSchedule,
 } from "../storage/course-storage.js";
 import { analyzeSchedule } from "../planner/planner.js";
 import { renderBuckets } from "./bucket-manager.js";
@@ -16,6 +17,23 @@ import {
 	hasPlannerSessionChange,
 	loadPlannerSession,
 } from "../planner/session.js";
+import { mountGoalPlanner } from "./goal-planner.js";
+import { formatAiCheck, runAiCheck } from "../planner/ai-check.js";
+import { getLanguageModel } from "../planner/goal-interpreter.js";
+import {
+	COUNTER_NAMES,
+	getCounters,
+	resetCounters,
+} from "../storage/planning-storage.js";
+import { FEEDBACK_URL, STORAGE_KEYS } from "../shared/constants.js";
+
+const COUNTER_LABELS = {
+	goalProposals: "goal proposals shown",
+	goalConfirmed: "proposals applied",
+	goalDiscarded: "proposals discarded",
+	searchRuns: "schedule searches",
+	searchTruncated: "searches stopped early",
+};
 
 (async () => {
 	const params = new URLSearchParams(window.location.search);
@@ -41,6 +59,17 @@ import {
 	const settingsPanel = document.getElementById("settings-panel");
 	const btnCloseSettings = document.getElementById("btn-close-settings");
 	const linkHelp = document.getElementById("link-help");
+	const linkFeedback = document.getElementById("link-feedback");
+	const usageCounters = document.getElementById("usage-counters");
+	const usageStatus = document.getElementById("usage-status");
+	const btnCopyCounters = document.getElementById("btn-copy-counters");
+	const btnResetCounters = document.getElementById("btn-reset-counters");
+	const btnSendFeedback = document.getElementById("btn-send-feedback");
+	const feedbackIncludeCounts = document.getElementById("feedback-include-counts");
+	const btnAiCheck = document.getElementById("btn-ai-check");
+	const btnCopyAiCheck = document.getElementById("btn-copy-ai-check");
+	const aiCheckResult = document.getElementById("ai-check-result");
+	const goalPlanner = mountGoalPlanner(document.getElementById("goal-planner"));
 	const termBadge = document.getElementById("term-badge");
 	const metadataDrawer = document.getElementById("course-metadata-drawer");
 	const metadataDrawerBackdrop = document.getElementById(
@@ -157,6 +186,14 @@ import {
 				await assignCourseToBucket(course.id, bucketId);
 				await loadData();
 			},
+			onScheduleSave: async (componentIndex, schedule) => {
+				await updateCourseComponentSchedule(
+					course.id,
+					componentIndex,
+					schedule,
+				);
+				await loadData();
+			},
 		});
 	}
 
@@ -233,6 +270,7 @@ import {
 			}
 
 			renderPlanningTray(courses, plannerSelection);
+			await goalPlanner.refresh();
 
 			if (courses.length === 0) {
 				bucketsContainer.innerHTML = `
@@ -322,6 +360,53 @@ import {
 
 		btnSettings.addEventListener("click", () => {
 			settingsPanel.classList.remove("hidden");
+			renderUsageCounters();
+		});
+
+		btnCopyCounters.addEventListener("click", async () => {
+			try {
+				await navigator.clipboard.writeText(await countersText());
+				usageStatus.textContent = "Copied.";
+			} catch {
+				usageStatus.textContent = "Couldn't copy. Select the numbers above instead.";
+			}
+		});
+
+		btnResetCounters.addEventListener("click", async () => {
+			await resetCounters();
+			usageStatus.textContent = "Counts reset.";
+			await renderUsageCounters();
+		});
+
+		btnAiCheck.addEventListener("click", async () => {
+			btnAiCheck.disabled = true;
+			btnAiCheck.textContent = "checking…";
+			aiCheckResult.hidden = false;
+			aiCheckResult.textContent = "running…";
+			try {
+				aiCheckResult.textContent = formatAiCheck(
+					await runAiCheck(getLanguageModel()),
+				);
+				btnCopyAiCheck.hidden = false;
+			} finally {
+				btnAiCheck.disabled = false;
+				btnAiCheck.textContent = "run again";
+			}
+		});
+
+		btnCopyAiCheck.addEventListener("click", async () => {
+			try {
+				await navigator.clipboard.writeText(aiCheckResult.textContent);
+				btnCopyAiCheck.textContent = "copied";
+			} catch {
+				btnCopyAiCheck.textContent = "select the text to copy";
+			}
+		});
+
+		btnSendFeedback.addEventListener("click", () => openFeedback(feedbackIncludeCounts.checked));
+		linkFeedback.addEventListener("click", (event) => {
+			event.preventDefault();
+			openFeedback(false);
 		});
 
 		btnCloseSettings.addEventListener("click", () => {
@@ -346,10 +431,51 @@ import {
 		});
 	}
 
+	async function renderUsageCounters() {
+		const counters = await getCounters();
+		usageCounters.replaceChildren(
+			...COUNTER_NAMES.flatMap((name) => {
+				const term = document.createElement("dt");
+				term.textContent = COUNTER_LABELS[name];
+				const value = document.createElement("dd");
+				value.textContent = String(counters[name]);
+				return [term, value];
+			}),
+		);
+	}
+
+	async function countersText() {
+		const counters = await getCounters();
+		return COUNTER_NAMES.map((name) => `${COUNTER_LABELS[name]}: ${counters[name]}`).join("\n");
+	}
+
+	async function openFeedback(includeCounts) {
+		const version = chrome.runtime.getManifest?.().version ?? "";
+		const lines = [
+			"What were you trying to do?",
+			"",
+			"What happened, or where did you get stuck?",
+			"",
+			`Albert Planner ${version}`.trim(),
+		];
+		if (includeCounts) lines.push("", "Local usage counts:", await countersText());
+		const url = new URL(FEEDBACK_URL);
+		url.searchParams.set("title", "Feedback: ");
+		url.searchParams.set("body", lines.join("\n"));
+		chrome.tabs.create({ url: url.toString() });
+	}
+
 	function listenForUpdates() {
 		chrome.storage.onChanged.addListener((changes, namespace) => {
 			if (namespace === "local" && hasPlannerSessionChange(changes)) {
 				scheduleLoadData();
+			}
+			if (
+				namespace === "local" &&
+				changes[STORAGE_KEYS.LOCAL_COUNTERS] &&
+				!settingsPanel.classList.contains("hidden")
+			) {
+				renderUsageCounters();
 			}
 		});
 
