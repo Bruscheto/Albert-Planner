@@ -9,9 +9,9 @@ export default defineConfig({
 	manifestVersion: 3,
 	manifest: {
 		name: "Albert Planner",
-		version: "1.2",
+		version: "1.3",
 		description:
-			"Turn your Albert shopping cart into a weekly calendar with professor ratings and conflict detection.",
+			"Turn your Albert cart into a weekly calendar. Plan with goals: on-device AI proposes rules, and a full search ranks schedules.",
 		permissions: [
 			"storage",
 			"activeTab",

@@ -36,6 +36,17 @@ Albert Planner is a Chrome extension for NYU students. It imports course data fr
 - View Rate My Professors data for matched instructors.
 - Export the weekly schedule as a PNG file.
 - Store planner data in the browser.
+- Plan with goals: set rules (credit limit, earliest start, days off, must or skip per section) or describe a goal in plain language. Chrome's built-in model proposes rules on your device, and nothing changes until you review and apply them.
+- Get up to three ranked schedule options from a complete search over your cart's sections, with a reason for every course that was left out.
+
+### Plan with goals
+
+The **plan with goals** section of the side panel turns a goal such as "no Friday classes, nothing before 10, at most 16 credits" into proposed rules. Each proposed change is shown against your current rules and can be kept or dropped before you apply it.
+
+- **On-device only.** Goals are read by Chrome's built-in Prompt API (Gemini Nano). Goal text, cart data and rules are not sent anywhere. If the model isn't available on your computer, the manual rules still work.
+- **Complete search.** Schedules are found by a bounded branch-and-bound search over one section per course, not a greedy pass, so a blocking section is swapped when a better combination exists. Results are sorted by a stated order and never called "best". If the search stops early, it says so.
+- **Grounded explanations.** Every course in an option is marked included, left out with a reason, or unknown (TBA). The text comes from computed facts, not from a model.
+- **Nothing applies itself.** Proposals apply only after you confirm them, and options change your planner only when you apply one. Applying rechecks that your cart and rules haven't changed.
 
 ## How it works
 
@@ -102,6 +113,8 @@ corepack pnpm dev
 | `corepack pnpm build` | Create the extension in `dist/` |
 | `corepack pnpm zip` | Create a distribution package |
 
+Open `test-harness.html` from a local static server to preview the side panel with sample courses. It includes a demo stand-in for Chrome's built-in model; add `?ai=downloadable`, `?ai=unavailable` or `?ai=none` to see the other goal-box states.
+
 WXT uses Vite for the development and production builds.
 
 ### Project structure
@@ -115,7 +128,7 @@ Albert-Planner/
 │   ├── background/         Events, messages, and professor lookups
 │   ├── content/            Albert page import
 │   ├── metadata/           Course and professor details
-│   ├── planner/            Schedule analysis and priorities
+│   ├── planner/            Schedule search, explanations, goal interpreter
 │   ├── popup/              Side panel interface
 │   ├── rmp/                Professor matching
 │   ├── shared/             Shared utilities
@@ -130,7 +143,7 @@ Albert-Planner/
 
 Albert Planner stores course and planner data in `chrome.storage.local`. It does not send this data to an Albert Planner server.
 
-Professor lookups send an instructor name and course context to Rate My Professors. See the [privacy policy](./PRIVACY.md) for more details.
+Professor lookups send an instructor name and course context to Rate My Professors. Goal planning runs on your device and makes no network requests. See the [privacy policy](./PRIVACY.md) for more details.
 
 ## Contributing
 

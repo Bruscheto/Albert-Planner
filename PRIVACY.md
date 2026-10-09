@@ -1,6 +1,6 @@
 # Albert Planner — Privacy Policy
 
-_Last updated: 2026-09-22_
+_Last updated: 2026-10-09_
 
 The Albert Planner extension stores your planning data locally. The optional web AI preview has a separate data flow described below.
 
@@ -11,6 +11,8 @@ The Albert Planner extension stores your planning data locally. The optional web
   - **RateMyProfessors:** to display professor ratings, the extension queries `ratemyprofessors.com` using the instructor's name and the course code from your cart. Only the professor name and course code are sent — no information about you is included. Results are cached locally in your browser.
   - **Google Fonts:** the extension loads fonts from Google Fonts for styling.
   - Links you choose to click (e.g. a Google search for a course) open in your browser as normal.
+- **Goal planning:** goals you type in the side panel are interpreted by Chrome's built-in on-device model (the Prompt API). Goal text, your cart and your rules are processed on your device and are not sent to us or to any other server by this feature. Goal text is not saved. Your rules are saved locally per term. The first use may ask Chrome to download its model; that download comes from Google, starts only when you click, and contains none of your data.
+- **Usage counts and feedback:** the extension keeps a few local counts (for example, how many goal proposals you applied or discarded). They are shown in Settings and are never sent automatically. **Send feedback** opens a GitHub issue form in a new tab; the counts are included only if you tick the box to include them.
 - **Removal:** uninstalling the extension or clearing its storage deletes all locally stored data.
 
 Contact: zz4917@nyu.edu
