@@ -45,8 +45,13 @@ import {
 const DAY_LETTERS = { Mon: "M", Tue: "T", Wed: "W", Thu: "R", Fri: "F", Sat: "S", Sun: "U" };
 const EARLIEST_CHOICES = [0, 480, 510, 540, 570, 600, 630, 660, 690, 720, 780];
 const OPTION_NAMES = ["A", "B", "C"];
-const STRIP_START = 8 * 60;
-const STRIP_END = 22 * 60;
+// Distinct, colorblind-aware hues (Tableau 10). A course keeps its color
+// across options because colors are assigned per cart, not per option.
+const COURSE_COLORS = ["#4e79a7", "#f28e2b", "#59a14f", "#e15759", "#b07aa1", "#76b7b2", "#edc948", "#9c755f", "#ff9da7", "#bab0ac"];
+const STRIP_MIN_HOURS = 6;
+// Goals in scripts other than Latin are passed through, but Chrome's
+// on-device model is tuned for English, so the student is told to check.
+const NON_LATIN_SCRIPT = /[\u0400-\u04ff\u0590-\u06ff\u0900-\u0dff\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af]/;
 
 /** Small DOM builder. Text is always set with textContent. */
 function h(tag, props = {}, ...children) {
@@ -83,13 +88,26 @@ function toMinutes(time) {
 	return time.hours * 60 + time.minutes;
 }
 
-/** A stable hue per course code, so a course keeps its color across options. */
-function courseHue(course) {
-	let hash = 0;
-	for (const char of normalizeCourseCode(course.courseCode)) {
-		hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
-	}
-	return hash % 360;
+/**
+ * One color per course code for a set of results. Codes are colored in the
+ * order they first appear across the options, so the courses side by side in
+ * option A always get the most distinct colors, and a course keeps its color
+ * in every option. Past the palette, colors fall back to a hashed hue.
+ * @param {string[][]} optionCourseCodes - Course codes per option, in order.
+ * @param {object[]} courses - Every course, for codes not in any option.
+ * @returns {Map<string, string>}
+ */
+function courseColors(optionCourseCodes, courses) {
+	const codes = [...new Set([
+		...optionCourseCodes.flat(),
+		...courses.map((course) => normalizeCourseCode(course.courseCode)).sort(),
+	])];
+	return new Map(codes.map((code, index) => {
+		if (index < COURSE_COLORS.length) return [code, COURSE_COLORS[index]];
+		let hash = 0;
+		for (const char of code) hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
+		return [code, `hsl(${hash % 360} 55% 52%)`];
+	}));
 }
 
 function earliestLabel(minutes) {
@@ -156,10 +174,12 @@ export function mountGoalPlanner(root) {
 	);
 
 	const generateButton = h("button", { type: "button", class: "btn-secondary btn-accent goal-generate", onclick: onGenerate }, "generate schedules");
-	const optionsArea = h("div", { class: "goal-options", "aria-live": "polite" });
+	const optionsArea = h("div", { class: "goal-options" });
+	// One short announcement per search instead of reading every card aloud.
+	const optionsAnnouncer = h("p", { class: "visually-hidden", role: "status", "aria-live": "polite" });
 	const termNotice = h("p", { class: "goal-term-notice", hidden: true });
 
-	root.replaceChildren(termNotice, goalForm, proposalArea, notesArea, rulesDetails, generateButton, optionsArea);
+	root.replaceChildren(termNotice, goalForm, proposalArea, notesArea, rulesDetails, generateButton, optionsAnnouncer, optionsArea);
 
 	goalInput.addEventListener("input", () => {
 		// Editing the goal makes an outstanding proposal or request stale.
@@ -179,12 +199,17 @@ export function mountGoalPlanner(root) {
 	refreshAvailability();
 
 	// ---- Data -----------------------------------------------------------
+	// Storage events and explicit calls can overlap; only the newest refresh
+	// may write state, so an older read never overwrites a newer one.
+	let refreshSeq = 0;
 	async function refresh() {
+		const seq = ++refreshSeq;
 		const [allCourses, selection, termResult] = await Promise.all([
 			getCourses(),
 			getPlannerSelection(),
 			chrome.storage.local.get(STORAGE_KEYS.ACTIVE_TERM),
 		]);
+		if (seq !== refreshSeq) return;
 		const activeTerm = termResult[STORAGE_KEYS.ACTIVE_TERM] ?? null;
 		const termKey = resolveTermKey(allCourses, activeTerm);
 		state.allCourses = allCourses;
@@ -196,6 +221,7 @@ export function mountGoalPlanner(root) {
 		let dropped = [];
 		if (termKey !== null && allCourses.length) {
 			({ constraints, droppedIds: dropped } = await loadConstraints(termKey, allCourses));
+			if (seq !== refreshSeq) return;
 			// Persist the cleanup once so the notice doesn't repeat.
 			if (dropped.length) await saveConstraints(termKey, constraints, allCourses);
 		}
@@ -346,11 +372,14 @@ export function mountGoalPlanner(root) {
 			// A late answer after any cart or rule change is discarded.
 			if (!requests.isCurrent(ticket)) return;
 			if (!result.changes.length && !result.unresolvedGoals.length && !result.clarificationQuestions.length) {
-				setGoalStatus("No rule changes found in that goal. Try naming days, times, credits or courses.", "info");
+				setGoalStatus(NON_LATIN_SCRIPT.test(goalText)
+					? "No rule changes found. The on-device model reads English most reliably; try rephrasing in English."
+					: "No rule changes found in that goal. Try naming days, times, credits or courses.", "info");
 				return;
 			}
 			state.proposal = { ticket, result, current, kept: new Set(result.changes.map((change) => change.id)) };
-			setGoalStatus(result.changes.length ? "Review the proposed rules. Nothing changes until you apply them." : "Nothing to change yet; see the notes below.", "info");
+			const languageNote = NON_LATIN_SCRIPT.test(goalText) ? " The on-device model reads English most reliably, so check each one." : "";
+			setGoalStatus(result.changes.length ? `Review the proposed rules. Nothing changes until you apply them.${languageNote}` : "Nothing to change yet; see the notes below.", "info");
 			renderProposal();
 			countSafely("goalProposals");
 		} catch (error) {
@@ -462,6 +491,7 @@ export function mountGoalPlanner(root) {
 			renderOpenNotes();
 			await refresh();
 			rulesDetails.open = true;
+			generateButton.focus({ preventScroll: true });
 		} catch (error) {
 			setGoalStatus(`${error.message} Adjust which rules you keep.`, "error");
 		}
@@ -507,14 +537,23 @@ export function mountGoalPlanner(root) {
 	}
 
 	function renderRules() {
+		// Rules re-render after every change; keep keyboard focus on the same
+		// control so a keyboard user isn't thrown back to the top of the page.
+		const focused = rulesBody.contains(document.activeElement) ? document.activeElement.dataset.focusKey : null;
 		rulesBody.replaceChildren();
 		const constraints = state.constraints;
 		if (!constraints) return;
+		renderRulesBody(constraints);
+		if (focused) rulesBody.querySelector(`[data-focus-key="${CSS.escape(focused)}"]`)?.focus({ preventScroll: true });
+	}
+
+	function renderRulesBody(constraints) {
 		rulesSummary.textContent = summarizeRules(constraints);
 
 		const credits = h("input", {
 			id: "rule-credits",
 			type: "number",
+			dataset: { focusKey: "credits" },
 			min: "1",
 			max: "30",
 			step: "0.5",
@@ -529,6 +568,7 @@ export function mountGoalPlanner(root) {
 		const choices = [...new Set([...EARLIEST_CHOICES, constraints.earliestMinutes])].sort((a, b) => a - b);
 		const earliest = h("select", {
 			id: "rule-earliest",
+			dataset: { focusKey: "earliest" },
 			onchange: () => updateRules({ earliestMinutes: Number(earliest.value) }),
 		}, choices.map((minutes) => h("option", { value: String(minutes), selected: minutes === constraints.earliestMinutes }, earliestLabel(minutes))));
 
@@ -541,6 +581,7 @@ export function mountGoalPlanner(root) {
 					h("input", {
 						type: "checkbox",
 						checked: off,
+						dataset: { focusKey: `day-${day}` },
 						"aria-label": `No classes on ${day}`,
 						onchange: (event) => {
 							const set = new Set(constraints.unavailableDays);
@@ -580,6 +621,7 @@ export function mountGoalPlanner(root) {
 					name,
 					value: option,
 					checked: value === option,
+					dataset: { focusKey: `${name}-${option}` },
 					onchange: () => {
 						const locked = constraints.lockedCourseIds.filter((id) => id !== course.id);
 						const excluded = constraints.excludedCourseIds.filter((id) => id !== course.id);
@@ -594,7 +636,7 @@ export function mountGoalPlanner(root) {
 			h("div", { class: "rule-course-text" },
 				h("span", { class: "rule-course-code" }, courseLabel(course), enrolled ? h("span", { class: "rule-badge" }, "enrolled") : null),
 				h("span", { class: "rule-course-title" }, course.title),
-				h("span", { class: "rule-course-meta" }, `${meetingSummary(course)} · ${formatCredits(course.credits)}`)),
+				h("span", { class: "rule-course-meta" }, `${meetingSummary(course)} · ${course.credits} cr`)),
 			h("div", { class: "segmented", role: "radiogroup", "aria-label": `${courseLabel(course)} rule` },
 				segment("consider", enrolled ? "keep" : "maybe"),
 				enrolled ? null : segment("required", "must"),
@@ -622,17 +664,32 @@ export function mountGoalPlanner(root) {
 			courses,
 			selectedIds,
 			fingerprint: planInputsFingerprint(courses, state.constraints),
+			colors: courseColors(
+				result.alternatives?.map((alternative) => alternative.courseIds.map((id) => normalizeCourseCode(courses.find((course) => course.id === id).courseCode))) ?? [],
+				courses,
+			),
 			stale: false,
 		};
 		state.appliedIndex = null;
 		renderOptions();
 		countSafely("searchRuns");
 		if (result.truncated) countSafely("searchTruncated");
-		optionsArea.querySelector(".option-card, .options-failure, .options-empty")?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+		optionsAnnouncer.textContent = announceResult(result);
+		const first = optionsArea.querySelector(".option-name, .options-failure, .options-empty");
+		first?.scrollIntoView({ block: "nearest", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+	}
+
+	function announceResult(result) {
+		if (result.status === "required-failed") return "A required course can't fit. See the explanation below.";
+		const count = result.alternatives.length;
+		const found = count ? `${count} schedule ${count === 1 ? "option" : "options"} found.` : "No schedule options fit these rules.";
+		return result.truncated ? `${found} The search stopped early, so results may be incomplete.` : found;
 	}
 
 	function renderOptions() {
 		const options = state.options;
+		generateButton.textContent = options ? "generate again" : "generate schedules";
+		generateButton.classList.toggle("is-attention", Boolean(options?.stale));
 		if (!options) {
 			if (state.courses.length) {
 				optionsArea.replaceChildren(h("p", { class: "options-hint" }, "Options appear here. Your planner only changes when you apply one."));
@@ -643,7 +700,7 @@ export function mountGoalPlanner(root) {
 		const children = [];
 
 		if (options.stale) {
-			children.push(h("p", { class: "options-banner options-banner--stale", role: "status" }, "Your cart or rules changed since these options were made. Generate again to apply one."));
+			children.push(h("p", { class: "options-banner options-banner--stale", id: "options-stale-note", role: "status" }, "Your cart or rules changed since these options were made. Generate again to apply one."));
 		}
 		if (result.status === "required-failed") {
 			children.push(h("div", { class: "options-failure", role: "alert" },
@@ -669,7 +726,7 @@ export function mountGoalPlanner(root) {
 	}
 
 	function renderOptionCard(alternative, index) {
-		const { result, courses, selectedIds } = state.options;
+		const { result, courses, selectedIds, colors } = state.options;
 		const byId = new Map(courses.map((course) => [course.id, course]));
 		const picked = alternative.courseIds.map((id) => byId.get(id));
 		const entries = explainAlternative(result, alternative, courses, selectedIds);
@@ -679,32 +736,42 @@ export function mountGoalPlanner(root) {
 		const disabled = state.options.stale || applied;
 		const diff = index > 0 ? diffAlternatives(result.alternatives[0], alternative) : null;
 		const added = new Set(diff?.added ?? []);
+		const colorOf = (course) => colors.get(normalizeCourseCode(course.courseCode));
+		const name = OPTION_NAMES[index];
+		const headingId = `option-${name}-title`;
 
-		return h("article", { class: `option-card${applied ? " is-applied" : ""}`, "aria-label": `Option ${OPTION_NAMES[index]}` },
+		return h("article", { class: `option-card${applied ? " is-applied" : ""}`, "aria-labelledby": headingId },
 			h("header", { class: "option-head" },
-				h("span", { class: "option-name" }, `option ${OPTION_NAMES[index]}`),
-				h("span", { class: "option-facts" }, summarizeFacts(alternative.facts).map((fact) => h("span", { class: "option-fact" }, fact)))),
+				h("h3", { class: "option-name", id: headingId }, `option ${name}`),
+				applied ? h("span", { class: "option-applied-badge" }, "in your planner") : null),
+			h("p", { class: "option-facts" }, summarizeFacts(alternative.facts).map((fact) => h("span", { class: "option-fact" }, fact))),
 			diff ? renderDiff(diff, byId) : null,
-			renderWeekStrip(picked),
-			h("ul", { class: "option-courses" },
-				picked.map((course) => h("li", { class: `option-course${added.has(course.id) ? " is-diff" : ""}`, style: `--hue:${courseHue(course)}` },
+			renderWeekStrip(picked, colorOf),
+			h("ul", { class: "option-courses", "aria-label": `Courses in option ${name}` },
+				picked.map((course) => h("li", { class: `option-course${added.has(course.id) ? " is-diff" : ""}`, style: `--c:${colorOf(course)}` },
 					h("span", { class: "option-course-code" }, courseLabel(course)),
-					h("span", { class: "option-course-title" }, course.title)))),
+					h("span", { class: "option-course-title", title: course.title }, course.title),
+					h("span", { class: "option-course-credits" }, `${course.credits} cr`)))),
 			h("details", { class: "option-why" },
-				h("summary", {}, `why · ${picked.length} in${skipped ? ` · ${skipped} left out` : ""}${unknown ? ` · ${unknown} unknown` : ""}`),
+				h("summary", {}, h("span", {}, "why"), h("span", { class: "option-why-counts" }, `${picked.length} in${skipped ? ` · ${skipped} out` : ""}${unknown ? ` · ${unknown} unknown` : ""}`)),
 				renderWhyList(entries, courses)),
 			h("div", { class: "option-actions" },
 				h("button", {
 					type: "button",
-					class: index === 0 ? "btn-primary" : "btn-secondary",
+					class: index === 0 && !applied ? "btn-primary" : "btn-secondary",
 					disabled,
+					"aria-describedby": state.options.stale ? "options-stale-note" : null,
 					onclick: () => applyOption(index),
-				}, applied ? "applied to planner" : "apply to planner")),
+				}, applied ? "✓ applied to planner" : `apply option ${name}`)),
 		);
 	}
 
 	function renderDiff({ added, removed }, byId) {
-		const item = (id, sign) => h("span", { class: `option-diff-item option-diff-item--${sign}` }, sign === "add" ? "+ " : "− ", courseLabel(byId.get(id)));
+		if (!added.length && !removed.length) return null;
+		const item = (id, sign) => h("span", { class: `option-diff-item option-diff-item--${sign}` },
+			h("span", { class: "option-diff-sign", "aria-hidden": "true" }, sign === "add" ? "+" : "−"),
+			h("span", { class: "visually-hidden" }, sign === "add" ? "adds " : "drops "),
+			courseLabel(byId.get(id)));
 		return h("p", { class: "option-diff" },
 			h("span", { class: "option-diff-label" }, "vs A"),
 			added.map((id) => item(id, "add")),
@@ -714,37 +781,73 @@ export function mountGoalPlanner(root) {
 	function renderWhyList(entries, courses, onlyProblems = false) {
 		const byId = new Map(courses.map((course) => [course.id, course]));
 		const order = { included: 0, unknown: 1, skipped: 2 };
+		const labels = { included: "in", unknown: "?", skipped: "out" };
+		const spoken = { included: "included", unknown: "unknown", skipped: "left out" };
 		const shown = entries
 			.filter((entry) => !onlyProblems || entry.status !== "included")
 			.sort((a, b) => order[a.status] - order[b.status]);
-		return h("ul", { class: "why-list" },
-			shown.map((entry) => h("li", { class: `why-item why-item--${entry.status}` },
-				h("span", { class: "why-status" }, entry.status === "included" ? "in" : entry.status === "unknown" ? "?" : "out"),
+		// role attributes keep list semantics under `display: contents`.
+		return h("ul", { class: "why-list", role: "list" },
+			shown.map((entry) => h("li", { class: `why-item why-item--${entry.status}`, role: "listitem" },
+				h("span", { class: "why-status", "aria-label": spoken[entry.status] }, labels[entry.status]),
 				h("span", { class: "why-course" }, courseLabel(byId.get(entry.courseId))),
 				h("span", { class: "why-reason" }, entry.reason))));
 	}
 
-	function renderWeekStrip(picked) {
+	/** Hour range that frames these meetings, at least STRIP_MIN_HOURS tall. */
+	function stripRange(meetings) {
+		if (!meetings.length) return { start: 9 * 60, end: 17 * 60 };
+		let start = Math.min(...meetings.map(({ part }) => toMinutes(part.timeRange.start)));
+		let end = Math.max(...meetings.map(({ part }) => toMinutes(part.timeRange.end)));
+		start = Math.floor(start / 60) * 60;
+		end = Math.ceil(end / 60) * 60;
+		const missing = STRIP_MIN_HOURS * 60 - (end - start);
+		if (missing > 0) {
+			start = Math.max(0, start - Math.floor(missing / 120) * 60);
+			end = Math.min(24 * 60, start + STRIP_MIN_HOURS * 60);
+		}
+		return { start, end };
+	}
+
+	function hourLabel(minutes) {
+		const hours = Math.floor(minutes / 60) % 24;
+		const suffix = hours < 12 ? "a" : "p";
+		return `${hours % 12 || 12}${suffix}`;
+	}
+
+	function renderWeekStrip(picked, colorOf) {
 		const meetings = picked.flatMap((course) =>
 			(course.components ?? [])
 				.filter((part) => part.timeRange && part.days?.length)
 				.map((part) => ({ part, course })));
 		const weekend = meetings.some(({ part }) => part.days.some((day) => day === "Sat" || day === "Sun"));
 		const days = weekend ? DAYS : DAYS.slice(0, 5);
-		const span = STRIP_END - STRIP_START;
-		return h("div", { class: "week-strip", style: `--cols:${days.length}`, "aria-hidden": "true" },
+		const range = stripRange(meetings);
+		const span = range.end - range.start;
+		const hours = span / 60;
+		// One label at the top of each hour row (every other row on long days).
+		const ticks = [];
+		const step = hours > 8 ? 2 : 1;
+		for (let minutes = range.start; minutes < range.end; minutes += step * 60) ticks.push(minutes);
+		const at = (minutes) => `${((minutes - range.start) / span) * 100}%`;
+
+		return h("div", { class: "week-strip", style: `--cols:${days.length};--hours:${hours}`, "aria-hidden": "true" },
+			h("div", { class: "week-axis" },
+				h("span", { class: "week-day" }, ""),
+				h("div", { class: "week-axis-track" },
+					ticks.map((minutes) => h("span", { class: "week-tick", style: `top:${at(minutes)}` }, hourLabel(minutes))))),
 			days.map((day) => h("div", { class: "week-col" },
 				h("span", { class: "week-day" }, DAY_LETTERS[day]),
 				h("div", { class: "week-track" },
 					meetings
 						.filter(({ part }) => part.days.includes(day))
 						.map(({ part, course }) => {
-							const start = Math.max(STRIP_START, toMinutes(part.timeRange.start));
-							const end = Math.min(STRIP_END, toMinutes(part.timeRange.end));
+							const start = toMinutes(part.timeRange.start);
+							const end = toMinutes(part.timeRange.end);
 							return h("span", {
 								class: "week-block",
-								title: `${courseLabel(course)} ${formatMinutes(toMinutes(part.timeRange.start))}`,
-								style: `top:${((start - STRIP_START) / span) * 100}%;height:${Math.max(4, ((end - start) / span) * 100)}%;--hue:${courseHue(course)}`,
+								title: `${courseLabel(course)} · ${formatMinutes(start)}–${formatMinutes(end)}`,
+								style: `top:${at(start)};height:max(3px, ${((end - start) / span) * 100}%);--c:${colorOf(course)}`,
 							});
 						})))));
 	}

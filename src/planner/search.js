@@ -64,6 +64,7 @@ export const SORT_ORDER = Object.freeze([
  * @property {string[]} [days]
  * @property {number} [startMinutes]
  * @property {string} [otherId]
+ * @property {number} [fixedCredits] - For overCredits caused by required and enrolled courses.
  */
 
 /**
@@ -377,7 +378,7 @@ export function searchSchedules({
 			if (other) block = { code: "overlapsFixed", otherId: other.course.id };
 		}
 		if (!block && section.credits > budget + CREDIT_EPSILON) {
-			block = { code: "overCredits" };
+			block = { code: "overCredits", fixedCredits };
 		}
 		if (block) {
 			blocked.set(section.course.id, block);

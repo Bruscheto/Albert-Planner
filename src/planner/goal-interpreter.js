@@ -160,6 +160,93 @@ function withTimeout(signal, timeoutMs) {
 	};
 }
 
+function initialPrompts() {
+	return [
+		{
+			role: "system",
+			content: `${interpretationInstructions}\nDays are written ${DAYS.join(", ")}. Return only JSON that matches the schema.`,
+		},
+		{ role: "user", content: JSON.stringify(EXAMPLE_INPUT) },
+		{ role: "assistant", content: JSON.stringify(EXAMPLE_OUTPUT) },
+	];
+}
+
+// The instructions and example are the same for every goal, so one primed
+// session is kept and cloned per request; each clone starts from the same
+// context and nothing from one goal carries into the next.
+const baseSessions = new WeakMap();
+const withoutClone = new WeakSet();
+
+function freshSession(languageModel, signal) {
+	return languageModel.create({ ...MODEL_OPTIONS, signal, initialPrompts: initialPrompts() });
+}
+
+async function createSession(languageModel, signal) {
+	if (withoutClone.has(languageModel)) return freshSession(languageModel, signal);
+	let base = baseSessions.get(languageModel);
+	if (!base) {
+		const created = Promise.resolve().then(() =>
+			languageModel.create({ ...MODEL_OPTIONS, initialPrompts: initialPrompts() }),
+		);
+		base = created;
+		baseSessions.set(languageModel, created);
+		created.then(
+			// A session that arrives after it was given up on is released.
+			(session) => {
+				if (baseSessions.get(languageModel) !== created) session?.destroy?.();
+			},
+			() => {
+				if (baseSessions.get(languageModel) === created) baseSessions.delete(languageModel);
+			},
+		);
+	}
+	let primed;
+	try {
+		primed = await abortable(base, signal);
+	} catch (error) {
+		// A cancelled request leaves the shared session loading for the next
+		// one; a timeout or failure starts over next time.
+		const cancelled = signal.aborted && !(signal.reason instanceof InterpretError);
+		if (!cancelled && baseSessions.get(languageModel) === base) baseSessions.delete(languageModel);
+		throw error;
+	}
+	if (typeof primed.clone !== "function") {
+		// No clone support: a fresh session per request, never a shared one.
+		withoutClone.add(languageModel);
+		baseSessions.delete(languageModel);
+		primed.destroy?.();
+		return freshSession(languageModel, signal);
+	}
+	try {
+		return await primed.clone({ signal });
+	} catch (error) {
+		if (!signal.aborted) {
+			baseSessions.delete(languageModel);
+			primed.destroy?.();
+		}
+		throw error;
+	}
+}
+
+/** Reject when `signal` aborts, without cancelling the shared work. */
+function abortable(promise, signal) {
+	if (signal.aborted) return Promise.reject(signal.reason);
+	return new Promise((resolve, reject) => {
+		const onAbort = () => reject(signal.reason);
+		signal.addEventListener("abort", onAbort, { once: true });
+		promise.then(
+			(value) => {
+				signal.removeEventListener("abort", onAbort);
+				resolve(value);
+			},
+			(error) => {
+				signal.removeEventListener("abort", onAbort);
+				reject(error);
+			},
+		);
+	});
+}
+
 /**
  * Interpret a plain-language goal into a validated proposal. Never applies it.
  *
@@ -201,18 +288,7 @@ export async function interpretGoal({
 	let raw;
 
 	try {
-		session = await languageModel.create({
-			...MODEL_OPTIONS,
-			signal: deadline.signal,
-			initialPrompts: [
-				{
-					role: "system",
-					content: `${interpretationInstructions}\nDays are written ${DAYS.join(", ")}. Return only JSON that matches the schema.`,
-				},
-				{ role: "user", content: JSON.stringify(EXAMPLE_INPUT) },
-				{ role: "assistant", content: JSON.stringify(EXAMPLE_OUTPUT) },
-			],
-		});
+		session = await createSession(languageModel, deadline.signal);
 		raw = await session.prompt(
 			JSON.stringify({
 				goalText: text,
@@ -249,7 +325,7 @@ export async function interpretGoal({
 	}
 	let result;
 	try {
-		result = validateInterpretation(dropBlankNotes(parsed), current, courses);
+		result = validateInterpretation(tidyModelOutput(parsed), current, courses);
 	} catch {
 		throw invalidOutput();
 	}
@@ -259,9 +335,10 @@ export async function interpretGoal({
 	};
 }
 
-// Small models sometimes pad note lists with empty strings; those carry no
-// meaning, so they are dropped instead of failing the whole proposal.
-function dropBlankNotes(value) {
+// Small models sometimes pad note lists with empty strings or repeat a list
+// value ("Fri", "Fri"). Neither changes the meaning, so they are cleaned up
+// instead of failing the whole proposal. Everything else is validated as is.
+function tidyModelOutput(value) {
 	if (!value || typeof value !== "object" || Array.isArray(value)) return value;
 	const clean = { ...value };
 	for (const key of ["unresolvedGoals", "clarificationQuestions"]) {
@@ -269,6 +346,13 @@ function dropBlankNotes(value) {
 			clean[key] = clean[key].filter(
 				(item) => typeof item !== "string" || item.trim(),
 			);
+		}
+	}
+	const patch = clean.constraintPatch;
+	if (patch && typeof patch === "object" && !Array.isArray(patch)) {
+		clean.constraintPatch = { ...patch };
+		for (const key of ["unavailableDays", "lockedCourseIds", "excludedCourseIds"]) {
+			if (Array.isArray(patch[key])) clean.constraintPatch[key] = [...new Set(patch[key])];
 		}
 	}
 	return clean;

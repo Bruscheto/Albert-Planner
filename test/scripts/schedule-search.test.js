@@ -8,6 +8,7 @@ import {
 	describeFailure,
 	diffAlternatives,
 	explainAlternative,
+	compactDays,
 	sortOrderText,
 	summarizeFacts,
 } from "../../src/planner/explanations.js";
@@ -317,7 +318,7 @@ function rules(patch = {}) {
 	});
 	assert.deepEqual(summarizeFacts(first.alternatives[0].facts), [
 		"12 credits",
-		"2 days (Mon Wed)",
+		"2 days · Mon Wed",
 		"11:00 AM–3:15 PM",
 	]);
 }
@@ -375,8 +376,90 @@ function rules(patch = {}) {
 	);
 }
 
+// --- Edge carts: empty, TBA-only, all conflicting, enrolled over limit ---
+{
+	const empty = searchSchedules({ courses: [], constraints: rules() });
+	assert.equal(empty.status, "ok");
+	assert.deepEqual(empty.alternatives, []);
+	assert.equal(empty.truncated, false);
+
+	const tbaOnly = [1, 2, 3].map((n) =>
+		section(`t${n}`, `TBA-UA ${n}`, "001", [
+			{ type: "Lecture", days: [], timeRange: null, isTBA: true },
+		]),
+	);
+	const tba = searchSchedules({ courses: tbaOnly, constraints: rules() });
+	assert.deepEqual(tba.alternatives, [], "no schedule is invented from unknown times");
+	const tbaWhy = explainAlternative(tba, { courseIds: [], facts: { credits: 0 } }, tbaOnly);
+	assert.ok(tbaWhy.every((entry) => entry.status === "unknown"));
+
+	// Every pair overlaps: each option is a single course, never two.
+	const clash = ["A", "B", "C", "D"].map((letter) =>
+		section(letter, `CLASH-UA ${letter}`, "001", [meeting(["Mon", "Wed"], [10], [11, 15])]),
+	);
+	const clashing = searchSchedules({ courses: clash, constraints: rules() });
+	assert.equal(clashing.alternatives.length, 3);
+	for (const alternative of clashing.alternatives) {
+		assert.equal(alternative.courseIds.length, 1);
+	}
+	const clashWhy = explainAlternative(clashing, clashing.alternatives[0], clash);
+	const out = clashWhy.filter((entry) => entry.status === "skipped");
+	assert.equal(out.length, 3);
+	for (const entry of out) assert.match(entry.reason, /^Overlaps CLASH-UA A · 001 on Mon and Wed$/);
+
+	// Enrolled credits already over the limit: other courses explain why.
+	const heavy = [
+		section("e1", "ENR-UA 1", "001", [meeting(["Mon"], [9], [10])], 4, { status: "Enrolled" }),
+		section("e2", "ENR-UA 2", "001", [meeting(["Tue"], [9], [10])], 4, { status: "Enrolled" }),
+		section("x", "NEW-UA 1", "001", [meeting(["Wed"], [9], [10])], 4),
+	];
+	const over = searchSchedules({ courses: heavy, constraints: rules({ maxCredits: 8 }) });
+	assert.deepEqual(over.alternatives[0].courseIds, ["e1", "e2"]);
+	const overWhy = explainAlternative(over, over.alternatives[0], heavy).find((entry) => entry.courseId === "x");
+	assert.equal(overWhy.reason, "Enrolled and required courses already use 8 credits of your 8 credits limit");
+}
+
+// --- Large cart stays bounded and deterministic -------------------------
+{
+	const days = ["Mon", "Tue", "Wed", "Thu", "Fri"];
+	const courses = [];
+	for (let code = 0; code < 25; code += 1) {
+		for (let n = 0; n < 4; n += 1) {
+			courses.push(
+				section(`L${code}-${n}`, `BIG-UA ${code}`, `00${n + 1}`, [
+					meeting([days[(code + n) % 5], days[(code + n + 2) % 5]], [8 + ((code * 3 + n) % 10)], [9 + ((code * 3 + n) % 10), 15]),
+				], 2 + (code % 3)),
+			);
+		}
+	}
+	const started = performance.now();
+	const first = searchSchedules({ courses, constraints: rules() });
+	const elapsed = performance.now() - started;
+	const second = searchSchedules({ courses, constraints: rules() });
+	assert.ok(first.nodesExplored <= NODE_LIMIT);
+	assert.ok(first.alternatives.length > 0, "a 100-section cart still yields options");
+	assert.deepEqual(
+		first.alternatives.map((alternative) => alternative.courseIds),
+		second.alternatives.map((alternative) => alternative.courseIds),
+		"same input, same options",
+	);
+	assert.ok(elapsed < 1000, `search took ${elapsed.toFixed(0)} ms`);
+	for (const alternative of first.alternatives) {
+		assert.ok(alternative.facts.credits <= 18);
+	}
+}
+
+// --- Compact day ranges ---------------------------------------------------
+{
+	assert.equal(compactDays(["Mon", "Tue", "Wed", "Thu"]), "Mon–Thu");
+	assert.equal(compactDays(["Mon", "Wed"]), "Mon Wed");
+	assert.equal(compactDays(["Mon", "Tue"]), "Mon Tue");
+	assert.equal(compactDays(["Fri", "Mon", "Tue", "Wed"]), "Mon–Wed Fri");
+	assert.equal(compactDays([]), "");
+}
+
 console.log(
-	"Schedule search tests passed: greedy miss, required failures, TBA, credit ceiling, days/start, enrolled, ranking, truncation, freshness",
+	"Schedule search tests passed: greedy miss, required failures, TBA, credit ceiling, days/start, enrolled, ranking, truncation, freshness, edge carts, large cart",
 );
 
 // --- Randomized cross-check against exhaustive enumeration --------------

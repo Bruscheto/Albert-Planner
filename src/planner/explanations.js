@@ -71,6 +71,9 @@ export function describeBlock(block, course, byId, constraints) {
 		case "selfOverlap":
 			return "Its own meetings overlap each other";
 		case "overCredits":
+			if (block.fixedCredits > 0 && course.credits <= constraints.maxCredits) {
+				return `Enrolled and required courses already use ${formatCredits(block.fixedCredits)} of your ${formatCredits(constraints.maxCredits)} limit`;
+			}
 			return `${formatCredits(course.credits)} won't fit under your ${formatCredits(constraints.maxCredits)} limit`;
 		case "sameCourseFixed": {
 			const other = byId.get(block.otherId);
@@ -194,13 +197,30 @@ export function sortOrderText() {
 	return `Sorted by ${SORT_ORDER.map((item) => item.label).join(", then ")}.`;
 }
 
+/**
+ * Days as a compact range where they run consecutively: Mon–Thu, Mon Wed,
+ * Mon–Wed Fri.
+ */
+export function compactDays(days) {
+	const indexes = DAYS.map((day, index) => (days.includes(day) ? index : -1)).filter((index) => index >= 0);
+	const runs = [];
+	for (const index of indexes) {
+		const run = runs.at(-1);
+		if (run && run[1] === index - 1) run[1] = index;
+		else runs.push([index, index]);
+	}
+	return runs
+		.flatMap(([from, to]) => (to - from >= 2 ? [`${DAYS[from]}–${DAYS[to]}`] : DAYS.slice(from, to + 1)))
+		.join(" ");
+}
+
 /** Compact summary facts for an alternative card. */
 export function summarizeFacts(facts) {
 	const parts = [formatCredits(facts.credits)];
 	parts.push(
 		facts.dayCount === 0
 			? "no timed classes"
-			: `${facts.dayCount} ${facts.dayCount === 1 ? "day" : "days"} (${facts.days.join(" ")})`,
+			: `${facts.dayCount} ${facts.dayCount === 1 ? "day" : "days"} · ${compactDays(facts.days)}`,
 	);
 	if (facts.earliestStart !== null && facts.latestEnd !== null) {
 		parts.push(`${formatMinutes(facts.earliestStart)}–${formatMinutes(facts.latestEnd)}`);

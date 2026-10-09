@@ -82,9 +82,29 @@ function answer(constraintPatch, notes = {}) {
 	});
 }
 
-/** A fake `LanguageModel` that records what it was sent. */
-function fakeModel(respond, { availability = "available" } = {}) {
-	const calls = { create: [], prompt: [], destroyed: 0 };
+/**
+ * A fake `LanguageModel` that records what it was sent. Sessions support
+ * `clone()` like Chrome's; `{ clone: false }` models an implementation without it.
+ */
+function fakeModel(respond, { availability = "available", clone = true } = {}) {
+	const calls = { create: [], prompt: [], clones: 0, destroyed: 0 };
+	const session = () => ({
+		async prompt(input, promptOptions) {
+			calls.prompt.push({ input, options: promptOptions });
+			return respond(input, promptOptions);
+		},
+		destroy() {
+			calls.destroyed += 1;
+		},
+		...(clone
+			? {
+					async clone() {
+						calls.clones += 1;
+						return session();
+					},
+				}
+			: {}),
+	});
 	return {
 		calls,
 		async availability() {
@@ -92,15 +112,7 @@ function fakeModel(respond, { availability = "available" } = {}) {
 		},
 		async create(options) {
 			calls.create.push(options);
-			return {
-				async prompt(input, promptOptions) {
-					calls.prompt.push({ input, options: promptOptions });
-					return respond(input, promptOptions);
-				},
-				destroy() {
-					calls.destroyed += 1;
-				},
-			};
+			return session();
 		},
 	};
 }
@@ -311,6 +323,64 @@ for (const fixture of fixtures) {
 	fixture.check(outcome);
 }
 
+// --- One primed session, cloned per goal ---------------------------------
+{
+	const languageModel = fakeModel(() => answer(patch({ unavailableDays: ["Fri"] })));
+	for (const goalText of ["no Friday classes", "no Fridays please"]) {
+		const proposal = await interpretGoal({ languageModel, goalText, constraints: CURRENT, courses: COURSES });
+		assert.deepEqual(proposal.proposedConstraints.unavailableDays, ["Fri"]);
+	}
+	assert.equal(languageModel.calls.create.length, 1, "instructions are primed once");
+	assert.equal(languageModel.calls.clones, 2, "each goal gets its own clone");
+	assert.equal(languageModel.calls.destroyed, 2, "each clone is released; the primed session is kept");
+	assert.equal(languageModel.calls.create[0].initialPrompts[0].role, "system");
+	assert.equal(languageModel.calls.create[0].signal, undefined, "a cancelled goal can't abort the shared session");
+
+	// Without clone(), every goal gets a fresh, unshared session.
+	const plain = fakeModel(() => answer(patch()), { clone: false });
+	await interpretGoal({ languageModel: plain, goalText: "anything", constraints: CURRENT, courses: COURSES });
+	await interpretGoal({ languageModel: plain, goalText: "anything else", constraints: CURRENT, courses: COURSES });
+	assert.equal(plain.calls.clones, 0);
+	assert.equal(plain.calls.prompt.length, 2);
+	assert.equal(plain.calls.destroyed, plain.calls.create.length, "every session is released");
+
+	// A failed primed session isn't cached; the next goal tries again.
+	let failures = 1;
+	const flaky = fakeModel(() => answer(patch()));
+	const realCreate = flaky.create;
+	flaky.create = async (options) => {
+		if (failures-- > 0) throw new Error("model busy");
+		return realCreate(options);
+	};
+	await assert.rejects(
+		interpretGoal({ languageModel: flaky, goalText: "no Fridays", constraints: CURRENT, courses: COURSES }),
+		(error) => error.code === "failed",
+	);
+	await interpretGoal({ languageModel: flaky, goalText: "no Fridays", constraints: CURRENT, courses: COURSES });
+
+	// A primed session that hangs times out, and isn't reused afterwards.
+	const hanging = fakeModel(() => answer(patch()));
+	let hang = true;
+	const hangingCreate = hanging.create;
+	hanging.create = (options) => (hang ? new Promise(() => {}) : hangingCreate(options));
+	await assert.rejects(
+		interpretGoal({ languageModel: hanging, goalText: "no Fridays", constraints: CURRENT, courses: COURSES, timeoutMs: 30 }),
+		(error) => error.code === "timeout",
+	);
+	hang = false;
+	await interpretGoal({ languageModel: hanging, goalText: "no Fridays", constraints: CURRENT, courses: COURSES });
+}
+
+// --- Non-English goals and repeated list values -------------------------
+{
+	const { proposal, languageModel } = await run("周五不上课，十点以前不要排课", () =>
+		answer(patch({ unavailableDays: ["Fri", "Fri"], earliestMinutes: 600 })),
+	);
+	assert.equal(JSON.parse(languageModel.calls.prompt[0].input).goalText, "周五不上课，十点以前不要排课", "goal text is passed through unchanged");
+	assert.deepEqual(proposal.proposedConstraints.unavailableDays, ["Fri"], "a repeated day is read once");
+	assert.deepEqual(proposal.changes.map((change) => change.id), ["earliestMinutes", "unavailableDays:+Fri"]);
+}
+
 // --- Timeout after the deadline -----------------------------------------
 {
 	const slow = (_, options) =>
@@ -428,7 +498,7 @@ for (const fixture of fixtures) {
 }
 
 console.log(
-	`Goal interpreter tests passed: ${fixtures.length} interpretation fixtures, timeout, cancellation, bounds, availability, partial apply`,
+	`Goal interpreter tests passed: ${fixtures.length} interpretation fixtures, session reuse, non-English input, timeout, cancellation, bounds, availability, partial apply`,
 );
 
 // --- Hardware spike check ------------------------------------------------
